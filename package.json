@@ -17,6 +17,7 @@
     "test:integration": "pnpm --filter @tabletap/api test:integration && pnpm --filter @tabletap/web test:integration",
     "test:api": "pnpm --filter @tabletap/api test:integration",
     "test:web": "pnpm --filter @tabletap/web test:integration",
+    "test:realtime": "pnpm --filter @tabletap/web test:realtime",
     "screenshots": "node scripts/capture.mjs",
     "db:generate": "pnpm --filter @tabletap/api db:generate",
     "db:migrate": "pnpm --filter @tabletap/api db:migrate",

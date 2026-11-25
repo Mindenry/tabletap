@@ -97,3 +97,6 @@ jobs:
 
       - name: Web integration smoke
         run: pnpm --filter @tabletap/web test:integration
+
+      - name: Realtime smoke (two sockets)
+        run: pnpm --filter @tabletap/web test:realtime

@@ -575,9 +575,17 @@ export class OrdersService {
   ): Promise<void> {
     const markAllItems = options.markAllItems ?? true;
     const rows = await tx.$queryRaw<
-      Array<{ id: string; status: OrderStatus; tenantId: string; branchId: string; tableId: string }>
+      Array<{
+        id: string;
+        status: OrderStatus;
+        tenantId: string;
+        branchId: string;
+        tableId: string;
+        tableSessionId: string;
+        customerSessionId: string | null;
+      }>
     >`
-      SELECT "id", "status", "tenantId", "branchId", "tableId"
+      SELECT "id", "status", "tenantId", "branchId", "tableId", "tableSessionId", "customerSessionId"
       FROM "Order" WHERE "id" = ${orderId}::uuid FOR UPDATE
     `;
     const order = rows[0];
@@ -614,7 +622,13 @@ export class OrdersService {
       eventType: 'order.accepted',
       aggregateType: 'Order',
       aggregateId: orderId,
-      payload: { orderId, status: 'ACCEPTED' },
+      customerSessionId: order.customerSessionId,
+      payload: {
+        orderId,
+        status: 'ACCEPTED',
+        tableSessionId: order.tableSessionId,
+        customerSessionId: order.customerSessionId,
+      },
     });
     await this.audit.record(
       {
@@ -639,8 +653,17 @@ export class OrdersService {
     actorType: 'STAFF' | 'CUSTOMER' | 'SYSTEM',
     actor: ActorMeta,
   ): Promise<void> {
-    const rows = await tx.$queryRaw<Array<{ status: OrderStatus; tenantId: string; branchId: string }>>`
-      SELECT "status", "tenantId", "branchId" FROM "Order" WHERE "id" = ${orderId}::uuid FOR UPDATE
+    const rows = await tx.$queryRaw<
+      Array<{
+        status: OrderStatus;
+        tenantId: string;
+        branchId: string;
+        tableSessionId: string;
+        customerSessionId: string | null;
+      }>
+    >`
+      SELECT "status", "tenantId", "branchId", "tableSessionId", "customerSessionId"
+      FROM "Order" WHERE "id" = ${orderId}::uuid FOR UPDATE
     `;
     const order = rows[0];
     if (!order) throw new NotFoundException({ message: 'Order not found', code: 'NOT_FOUND' });
@@ -667,7 +690,13 @@ export class OrdersService {
       eventType: to === 'CANCELLED' ? 'order.cancelled' : 'order.updated',
       aggregateType: 'Order',
       aggregateId: orderId,
-      payload: { orderId, status: to },
+      customerSessionId: order.customerSessionId,
+      payload: {
+        orderId,
+        status: to,
+        tableSessionId: order.tableSessionId,
+        customerSessionId: order.customerSessionId,
+      },
     });
     await this.audit.record(
       {
@@ -695,9 +724,17 @@ export class OrdersService {
     actor: ActorMeta,
   ): Promise<void> {
     const rows = await tx.$queryRaw<
-      Array<{ status: OrderStatus; tenantId: string; branchId: string; number: string; tableId: string }>
+      Array<{
+        status: OrderStatus;
+        tenantId: string;
+        branchId: string;
+        number: string;
+        tableId: string;
+        tableSessionId: string;
+        customerSessionId: string | null;
+      }>
     >`
-      SELECT "status", "tenantId", "branchId", "number", "tableId"
+      SELECT "status", "tenantId", "branchId", "number", "tableId", "tableSessionId", "customerSessionId"
       FROM "Order" WHERE "id" = ${orderId}::uuid FOR UPDATE
     `;
     const order = rows[0];
@@ -750,7 +787,15 @@ export class OrdersService {
       eventType: 'order.cancelled',
       aggregateType: 'Order',
       aggregateId: orderId,
-      payload: { orderId, number: order.number, status: 'CANCELLED', reason },
+      customerSessionId: order.customerSessionId,
+      payload: {
+        orderId,
+        number: order.number,
+        status: 'CANCELLED',
+        reason,
+        tableSessionId: order.tableSessionId,
+        customerSessionId: order.customerSessionId,
+      },
     });
     await this.audit.record(
       {

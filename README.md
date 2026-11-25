@@ -171,6 +171,47 @@ Password for every account: `TableTap!2026`
 
 ---
 
+## Use it from a phone (LAN)
+
+Both apps bind to all interfaces, so any device on the same Wi-Fi can use them. The current machine
+is `192.168.1.107`; substitute your own IP if it changes (`ipconfig`).
+
+1. Put the LAN addresses in `.env`:
+
+   ```ini
+   WEB_URL=http://192.168.1.107:3100
+   CORS_ORIGINS=http://localhost:3100,http://192.168.1.107:3100
+   NEXT_PUBLIC_API_URL=http://192.168.1.107:4100
+   ```
+
+   The browser socket URL is derived from the page hostname (`lib/socket.ts`), so a phone opening
+   `http://192.168.1.107:3100` connects to `http://192.168.1.107:4100` automatically.
+
+2. Allow the ports once (Windows, Private network):
+
+   ```powershell
+   New-NetFirewallRule -DisplayName "TableTap Web 3100 (LAN)" -Direction Inbound -Protocol TCP -LocalPort 3100 -Action Allow -Profile Private
+   New-NetFirewallRule -DisplayName "TableTap API 4100 (LAN)" -Direction Inbound -Protocol TCP -LocalPort 4100 -Action Allow -Profile Private
+   ```
+
+3. Restart the API, then open on the phone:
+
+   - Staff: `http://192.168.1.107:3100/login`
+   - Guest: `http://192.168.1.107:3100/menu/demo-sathorn-t03-4f8c2a91`
+
+4. On the computer, open **Kitchen** or `/kitchen/display` and keep it visible. Scan a table QR from
+   **Floor → Show QR**; the printed link already uses `WEB_URL`, so it opens on the phone.
+
+Notes:
+
+- Use the **development** API (`NODE_ENV=development`) for plain-HTTP LAN. Production sets `Secure`
+  cookies, which a phone will not store over HTTP — put it behind HTTPS.
+- The kitchen board shows **Live** when the socket is connected and falls back to polling if not.
+- Verify realtime yourself: `pnpm --filter @tabletap/web test:realtime` (connects two real sockets and
+  asserts order/kitchen events reach the staff and guest rooms).
+
+---
+
 ## Verification
 
 Commands below were executed against this repository and the seeded database.
@@ -181,6 +222,7 @@ pnpm --filter @tabletap/api typecheck
 pnpm --filter @tabletap/web build
 pnpm --filter @tabletap/api test:integration   # requires API + seed (50+ checks)
 pnpm --filter @tabletap/web test:integration   # requires web + seed (24 checks)
+pnpm --filter @tabletap/web test:realtime      # two real sockets: staff + guest rooms
 pnpm screenshots                               # captures docs/screenshots/*
 ```
 

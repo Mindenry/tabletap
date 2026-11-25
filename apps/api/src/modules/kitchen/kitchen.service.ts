@@ -315,7 +315,14 @@ export class KitchenService {
         eventType: 'kitchen.item.ready',
         aggregateType: 'OrderItem',
         aggregateId: orderItemId,
-        payload: { orderItemId, orderId: item.orderId, name: item.nameSnapshot },
+        customerSessionId: item.order.customerSessionId,
+        payload: {
+          orderItemId,
+          orderId: item.orderId,
+          name: item.nameSnapshot,
+          tableSessionId: item.order.tableSessionId,
+          customerSessionId: item.order.customerSessionId,
+        },
       });
     });
     return { id: orderItemId, status: 'READY' };
@@ -362,7 +369,15 @@ export class KitchenService {
         eventType: 'order.updated',
         aggregateType: 'Order',
         aggregateId: item.orderId,
-        payload: { orderId: item.orderId, status, orderItemId, itemStatus: 'SERVED' },
+        customerSessionId: item.order.customerSessionId,
+        payload: {
+          orderId: item.orderId,
+          status,
+          orderItemId,
+          itemStatus: 'SERVED',
+          tableSessionId: item.order.tableSessionId,
+          customerSessionId: item.order.customerSessionId,
+        },
       });
     });
     return { id: orderItemId, status: 'SERVED' };
@@ -472,6 +487,10 @@ export class KitchenService {
     _actor: ActorMeta,
     reason?: string,
   ): Promise<void> {
+    const order = await tx.order.findUnique({
+      where: { id: ticket.orderId },
+      select: { tableSessionId: true, customerSessionId: true },
+    });
     await this.outbox.append(tx, {
       tenantId: ticket.tenantId,
       branchId: ticket.branchId,
@@ -479,11 +498,14 @@ export class KitchenService {
       aggregateType: 'KitchenTicket',
       aggregateId: ticket.id,
       stationId: ticket.stationId,
+      customerSessionId: order?.customerSessionId ?? null,
       payload: {
         ticketId: ticket.id,
         ticketNumber: ticket.number,
         status,
         orderId: ticket.orderId,
+        tableSessionId: order?.tableSessionId,
+        customerSessionId: order?.customerSessionId,
         ...(reason ? { reason } : {}),
       },
     });
@@ -493,7 +515,13 @@ export class KitchenService {
       eventType: 'order.updated',
       aggregateType: 'Order',
       aggregateId: ticket.orderId,
-      payload: { orderId: ticket.orderId, ticketStatus: status },
+      customerSessionId: order?.customerSessionId ?? null,
+      payload: {
+        orderId: ticket.orderId,
+        ticketStatus: status,
+        tableSessionId: order?.tableSessionId,
+        customerSessionId: order?.customerSessionId,
+      },
     });
   }
 

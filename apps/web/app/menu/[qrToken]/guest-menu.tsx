@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { clientApi, errorMessage } from '@/lib/api';
+import { socketBaseUrl } from '@/lib/socket';
 import { cn, elapsedLabel, formatTHB } from '@/lib/utils';
 
 interface PublicOption {
@@ -215,7 +216,7 @@ export function GuestMenu({
 
   React.useEffect(() => {
     if (view !== 'orders') return;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4100';
+    const apiUrl = socketBaseUrl();
     const socket: Socket = io(`${apiUrl}/realtime`, {
       withCredentials: true,
       transports: ['websocket', 'polling'],

@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { clientApi, errorMessage } from '@/lib/api';
+import { socketBaseUrl } from '@/lib/socket';
 import { cn, elapsedLabel, formatTime } from '@/lib/utils';
 import type { KitchenTicket } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -116,7 +117,7 @@ export function KitchenBoard({
   }, [refresh]);
 
   React.useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4100';
+    const apiUrl = socketBaseUrl();
     const socket: Socket = io(`${apiUrl}/realtime`, {
       transports: ['websocket', 'polling'],
       withCredentials: true,

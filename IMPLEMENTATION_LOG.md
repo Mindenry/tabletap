@@ -152,3 +152,18 @@ Fix: stop dev, delete `.next`, restart. Documented in README and the local-devel
   files 200.
 - API smoke → all pass; web smoke → 24/24.
 - Playwright captured 11 screenshots with **no console errors** at 1440×900 and 390×844.
+
+### Session 2 addendum — realtime proof and LAN
+
+- Added `apps/web/scripts/realtime-smoke.mjs`: logs in, opens a guest session, connects a staff socket
+  and a guest socket, submits an order, and asserts the outbox-published events arrive in the staff,
+  kitchen and customer rooms. This exposed a real bug: `order.accepted` had no `customerSessionId`,
+  so the guest room never received it. Fixed by carrying the table/customer session ids in every
+  order and kitchen event payload.
+- Socket URL is now derived from `window.location.hostname` (`lib/socket.ts`), so a phone on the LAN
+  does not try to reach its own `localhost:4100`.
+- `.env` now points `WEB_URL`, `CORS_ORIGINS` and `NEXT_PUBLIC_API_URL` at `192.168.1.107`; Windows
+  firewall rules were added for TCP 3100/4100 on the Private profile.
+- Verified over LAN: web 200, API 200, CORS allow-origin correct, QR links point at the LAN URL, QR PNG
+  downloadable, realtime smoke passes against `http://192.168.1.107:4100`, and a Playwright browser at
+  `http://192.168.1.107:3100` shows the kitchen socket as **Live** with zero console errors.

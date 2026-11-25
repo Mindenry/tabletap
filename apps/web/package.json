@@ -9,7 +9,8 @@
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "test:integration": "node scripts/web-smoke.mjs"
+    "test:integration": "node scripts/web-smoke.mjs",
+    "test:realtime": "node scripts/realtime-smoke.mjs"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.3",

@@ -17,6 +17,8 @@ complete because a route exists.
 | API integration smoke            | `pnpm --filter @tabletap/api test:integration`  | **All checks passed** (50+)                                   |
 | Web integration smoke            | `node apps/web/scripts/web-smoke.mjs`           | **All checks passed** (24)                                    |
 | Production UI                    | `next build` + `next start`, Playwright         | **11 screenshots**, no console errors, CSS 200                |
+| Realtime events                  | `pnpm --filter @tabletap/web test:realtime`     | **All checks passed** (2 sockets, staff + guest rooms)        |
+| LAN browser                      | Playwright against `192.168.1.107:3100`         | Socket **Live**, 0 console errors, QR links use LAN           |
 
 The load tests in `tests/load/` are provided but **were not executed**; no performance numbers are
 claimed.
@@ -51,8 +53,15 @@ claimed.
   cancel-before-accept, waiter/water/utensils/bill requests with duplicate suppression.
 - **Orders** — creation, state machine, per-item states, append-only events, cancellation with stock
   reversal, staff POS orders.
-- **Kitchen** — tickets by station, accept/start/ready/reject, per-item ready/served, live board,
+- **Kitchen** - tickets by station, accept/start/ready/reject, per-item ready/served, live board,
   elapsed timers, optional sound, full-screen display.
+- **Realtime** - authenticated Socket.IO rooms with server-computed membership, transactional outbox
+  with per-tenant sequence, REST resync. Verified with two live sockets: staff/kitchen receive
+  `order.created` and `kitchen.ticket.created`; the guest room receives `order.created` and
+  `order.accepted`.
+- **LAN** - both apps bind to all interfaces, the browser socket follows the page hostname, QR links
+  use `WEB_URL`, CORS and Windows firewall are configured. Verified in a browser at
+  `http://192.168.1.107:3100` with the socket reporting Live and zero console errors.
 - **Billing** — bill snapshot, equal/amount/item splits, cancellation, receipt snapshot.
 - **Payments** — cash/card recording, PromptPay payload + QR, confirmation with locking, duplicate
   and overpayment rejection, expiry, refunds recorded with audit.
@@ -73,7 +82,7 @@ claimed.
 | ----------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
 | Promotions        | Model, seed data, server-side validation, discount allocation, redemption counter with atomic cap | Management API and UI                                   |
 | Split bills       | Equal / amount / item splits stored and displayed                                                 | Splits are not individually settled or auto-marked paid |
-| Realtime          | Socket.IO gateway, room authorization, outbox, resync endpoint                                    | Redis adapter for multiple API instances                |
+| Realtime          | Socket.IO gateway, room authorization, outbox, resync endpoint, guest-room routing verified       | Redis adapter for multiple API instances                |
 | Menu availability | Manual sold-out per branch                                                                        | Scheduled/time-window availability                      |
 | Notifications     | Table + seeded rows                                                                               | Inbox UI, delivery channels, worker                     |
 | Staff             | Membership roles, branch scopes, invitations                                                      | Station-level assignment, shift scheduling API/UI       |
