@@ -1,6 +1,6 @@
 # Project status
 
-_Last verified: 2026-11-25_
+_Last verified: 2026-11-26_
 
 This file distinguishes what was built and executed from what remains. Nothing here is marked
 complete because a route exists.
@@ -16,7 +16,7 @@ complete because a route exists.
 | Demo seed                        | `pnpm db:seed`                                  | Pass — 2 tenants, 4 branches, 60 tables, 34 items, 607 orders |
 | API integration smoke            | `pnpm --filter @tabletap/api test:integration`  | **All checks passed** (50+)                                   |
 | Web integration smoke            | `node apps/web/scripts/web-smoke.mjs`           | **All checks passed** (24)                                    |
-| Production UI                    | `next build` + `next start`, Playwright         | **11 screenshots**, no console errors, CSS 200                |
+| Production UI                    | `next build` + `next start`, Playwright         | **12 screenshots**, no console errors, CSS 200                |
 | Realtime events                  | `pnpm --filter @tabletap/web test:realtime`     | **All checks passed** (2 sockets, staff + guest rooms)        |
 | LAN browser                      | Playwright against `192.168.1.107:3100`         | Socket **Live**, 0 console errors, QR links use LAN           |
 
@@ -25,16 +25,27 @@ claimed.
 
 ## UI / UX
 
-- Custom design system on Tailwind v4 tokens: warm paper, ink, terracotta, olive, gold.
-- Self-hosted Fraunces (display) and IBM Plex Sans Thai (Latin + Thai subsets); no build-time font
-  fetch.
-- Motion: scroll reveals, count-up metrics, page transitions, spotlight cards, hover lifts,
-  bottom-sheet/dialog entrances; all disabled under `prefers-reduced-motion`.
-- Screens: landing, sign-in, dashboard, floor, guest requests, orders + detail, kitchen + full-screen,
-  POS, bills + detail, menu, inventory, staff, analytics, audit, settings, platform, guest menu.
-- Responsive at 390px and 1440px; screenshots captured from the production build.
-- Accessibility: labelled inputs, focus rings, aria-current navigation, keyboard-operable dialogs,
-  contrast-checked palette, reduced-motion support.
+The redesign replaced the previous “warm SaaS” look with a **service ledger** system drawn from the
+artefacts of restaurant service: the printed check, the ticket on the pass, the reservation book,
+the brass rail.
+
+- **Tokens** — porcelain paper `#f3ede2`, ink `#16130e`, oxblood `#7a3030`, brass `#9a7733`, sage
+  `#56674e`, near-black `#12100b` staff chrome. Radius scale 3–18px. One surface declaration per
+  element: hairline border _or_ shadow, never both.
+- **Type** — self-hosted Fraunces (display) and IBM Plex Sans Thai (Latin + Thai subsets); no
+  build-time font fetch. Money uses tabular Plex figures, so the `฿` glyph is correct.
+- **Structure** — fixed staff sidebar, live service rail (tenant · branch · section · Bangkok clock),
+  a horizontal metric band in place of KPI cards, a positioned floor plan drawn from persisted
+  `posX/posY/width/height` with zone labels and a list toggle, a typographic guest menu with
+  underlined category tabs, and a receipt-style marketing page.
+- **Motion** — scroll reveals, count-up metrics, page transitions, dialog/sheet entrances; all
+  disabled under `prefers-reduced-motion`.
+- **Screens** — landing, sign-in, dashboard, floor, guest requests, orders + detail, kitchen +
+  full-screen, POS, bills + detail, menu, inventory, staff, analytics, audit, settings, platform,
+  guest menu.
+- **Responsive** — verified at 390px and 1440px; screenshots captured from the production build.
+- **Accessibility** — labelled inputs, focus rings, aria-current and aria-pressed controls,
+  keyboard-operable dialogs, contrast-checked palette, reduced-motion support.
 
 ## Implemented and exercised end to end
 

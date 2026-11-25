@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Input, Label, Select } from '@/components/ui/input';
 import { StatusBadge } from '@/components/ui/badge';
+import { Table, TBody, TD, TH, THead, TR, TableWrap } from '@/components/ui/table';
 
 const STATUS_STYLES: Record<string, string> = {
   AVAILABLE: 'border-line bg-surface-raised hover:border-success/40',
@@ -58,6 +59,7 @@ export function FloorBoard({
 }) {
   const router = useRouter();
   const [zone, setZone] = React.useState<string>('ALL');
+  const [view, setView] = React.useState<'plan' | 'list'>('plan');
   const [selected, setSelected] = React.useState<TableRow | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [guests, setGuests] = React.useState('2');
@@ -81,6 +83,20 @@ export function FloorBoard({
 
   const visible = zone === 'ALL' ? initialTables : initialTables.filter((table) => table.zone?.id === zone);
   const occupied = initialTables.filter((table) => table.session);
+  const plan = initialTables.reduce(
+    (acc, table) => ({
+      width: Math.max(acc.width, table.posX + table.width),
+      height: Math.max(acc.height, table.posY + table.height),
+    }),
+    { width: 900, height: 460 },
+  );
+
+  function openTable(table: TableRow) {
+    setSelected(table);
+    setQr(null);
+    setMoveTarget('');
+    setMergeSource('');
+  }
 
   async function run(action: () => Promise<unknown>, success: string) {
     setBusy(true);
@@ -215,25 +231,28 @@ export function FloorBoard({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center border border-line bg-surface-raised">
           <button
             type="button"
             onClick={() => setZone('ALL')}
+            aria-pressed={zone === 'ALL'}
             className={cn(
-              'rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors',
-              zone === 'ALL' ? 'bg-ink text-paper' : 'bg-surface text-ink-soft hover:bg-paper-deep',
+              'border-r border-line px-3 py-1.5 text-[11.5px] font-medium transition-colors',
+              zone === 'ALL' ? 'bg-ink text-paper' : 'text-ink-soft hover:bg-paper-deep',
             )}
           >
             All · {initialTables.length}
           </button>
-          {zones.map((candidate) => (
+          {zones.map((candidate, index) => (
             <button
               key={candidate.id}
               type="button"
               onClick={() => setZone(candidate.id)}
+              aria-pressed={zone === candidate.id}
               className={cn(
-                'rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors',
-                zone === candidate.id ? 'bg-ink text-paper' : 'bg-surface text-ink-soft hover:bg-paper-deep',
+                'px-3 py-1.5 text-[11.5px] font-medium transition-colors',
+                index < zones.length - 1 && 'border-r border-line',
+                zone === candidate.id ? 'bg-ink text-paper' : 'text-ink-soft hover:bg-paper-deep',
               )}
             >
               {candidate.name} · {initialTables.filter((table) => table.zone?.id === candidate.id).length}
@@ -241,97 +260,167 @@ export function FloorBoard({
           ))}
         </div>
 
-        <div className="flex items-center gap-3 text-[11px] text-muted">
-          {[
-            ['OCCUPIED', 'Seated'],
-            ['ORDERING', 'Ordering'],
-            ['BILL_REQUESTED', 'Bill'],
-            ['PAYMENT_PENDING', 'Paying'],
-            ['AVAILABLE', 'Free'],
-          ].map(([status, label]) => (
-            <span key={status} className="inline-flex items-center gap-1.5">
-              <span
-                className={cn('h-2 w-2 rounded-full', {
-                  'bg-brand': status === 'OCCUPIED',
-                  'bg-brand-deep': status === 'ORDERING',
-                  'bg-gold': status === 'BILL_REQUESTED',
-                  'bg-olive': status === 'PAYMENT_PENDING',
-                  'bg-success': status === 'AVAILABLE',
-                })}
-              />
-              {label}
-            </span>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-3 text-[10.5px] text-muted">
+            {[
+              ['OCCUPIED', 'Seated'],
+              ['ORDERING', 'Ordering'],
+              ['BILL_REQUESTED', 'Bill'],
+              ['PAYMENT_PENDING', 'Paying'],
+              ['AVAILABLE', 'Free'],
+            ].map(([status, label]) => (
+              <span key={status} className="inline-flex items-center gap-1.5">
+                <span
+                  className={cn('h-1.5 w-1.5 rounded-full', {
+                    'bg-brand': status === 'OCCUPIED',
+                    'bg-gold': status === 'ORDERING' || status === 'BILL_REQUESTED',
+                    'bg-olive': status === 'PAYMENT_PENDING',
+                    'bg-success': status === 'AVAILABLE',
+                  })}
+                />
+                {label}
+              </span>
+            ))}
+          </div>
+          <div className="flex items-center rounded-sm border border-line">
+            {(['plan', 'list'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setView(mode)}
+                aria-pressed={view === mode}
+                className={cn(
+                  'px-2.5 py-1 text-[10.5px] font-medium capitalize transition-colors',
+                  view === mode ? 'bg-ink text-paper' : 'text-muted hover:text-ink',
+                )}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {visible.map((table) => (
-          <button
-            key={table.id}
-            type="button"
-            onClick={() => {
-              setSelected(table);
-              setQr(null);
-              setMoveTarget('');
-              setMergeSource('');
-            }}
-            className={cn(
-              'group flex min-h-[132px] flex-col justify-between rounded-lg border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-card',
-              STATUS_STYLES[table.status] ?? STATUS_STYLES.AVAILABLE!,
-            )}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-[18px] font-semibold leading-none tracking-tight">Table {table.number}</p>
-                <p className="mt-1 text-[11px] text-muted">
-                  {table.zone?.name ?? 'Unzoned'} · {table.capacity} seats
+      {view === 'plan' ? (
+        <div className="max-h-[70vh] overflow-auto border border-line bg-paper-warm scrollbar-thin">
+          <div className="floor-canvas relative" style={{ width: plan.width + 40, height: plan.height + 40 }}>
+            {zones.map((zone) => {
+              const items = initialTables.filter((table) => table.zone?.id === zone.id);
+              if (items.length === 0) return null;
+              const top = Math.min(...items.map((table) => table.posY));
+              return (
+                <p
+                  key={zone.id}
+                  className="absolute left-4 text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-soft"
+                  style={{ top: top - 24 }}
+                >
+                  {zone.name}
                 </p>
-              </div>
-              <StatusBadge status={table.status} />
-            </div>
-
-            {table.session ? (
-              <div className="mt-3 space-y-1">
-                <div className="flex items-center justify-between text-[12px]">
-                  <span className="inline-flex items-center gap-1 text-muted">
-                    <Clock className="h-3 w-3" /> {elapsedLabel(table.session.openedAt)}
-                  </span>
-                  <span className="tabular font-semibold text-ink">
-                    {formatTHB(table.session.outstandingTotal)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-muted">
-                  <span className="inline-flex items-center gap-1">
-                    <Users className="h-3 w-3" /> {table.session.guestCount || '—'}
-                  </span>
-                  <span>{table.session.orderCount} order(s)</span>
-                </div>
-                {table.session.openRequests > 0 ? (
-                  <p className="rounded bg-danger-soft px-2 py-0.5 text-[10px] font-semibold text-danger">
-                    {table.session.openRequests} open request(s)
-                  </p>
-                ) : null}
-              </div>
-            ) : (
-              <div className="mt-3 flex items-center justify-between text-[11px] text-muted">
-                <span>{table.status === 'CLEANING' ? 'Waiting to be reset' : 'Ready for guests'}</span>
-                {table.qr ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-medium">
-                    <QrCode className="h-3 w-3" /> QR
-                  </span>
-                ) : (
-                  <span className="text-danger">No QR</span>
-                )}
-              </div>
-            )}
-
-            <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-brand opacity-0 transition-opacity group-hover:opacity-100">
-              Manage <ArrowRightLeft className="h-3 w-3" />
-            </span>
-          </button>
-        ))}
-      </div>
+              );
+            })}
+            {visible.map((table) => {
+              const seated = table.session;
+              return (
+                <button
+                  key={table.id}
+                  type="button"
+                  onClick={() => openTable(table)}
+                  style={{
+                    left: table.posX + 20,
+                    top: table.posY + 20,
+                    width: table.width,
+                    height: table.height,
+                  }}
+                  className={cn(
+                    'absolute flex flex-col justify-between rounded-md border p-2 text-left transition-colors duration-150 hover:border-ink/35',
+                    STATUS_STYLES[table.status] ?? STATUS_STYLES.AVAILABLE!,
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-1">
+                    <span className="money text-[15px] font-medium leading-none text-ink">
+                      {table.number}
+                    </span>
+                    <span
+                      aria-hidden
+                      className={cn('mt-0.5 h-1.5 w-1.5 rounded-full', {
+                        'bg-brand': table.status === 'OCCUPIED',
+                        'bg-gold': table.status === 'ORDERING' || table.status === 'BILL_REQUESTED',
+                        'bg-olive': table.status === 'PAYMENT_PENDING',
+                        'bg-success': table.status === 'AVAILABLE',
+                        'bg-muted-soft': table.status === 'CLEANING',
+                      })}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-[9px] uppercase tracking-[0.08em] text-muted">
+                      {table.zone?.name ?? 'Floor'} · {table.capacity}
+                    </p>
+                    {seated ? (
+                      <p className="money mt-0.5 truncate text-[10px] font-medium text-ink-soft">
+                        {formatTHB(seated.outstandingTotal)}
+                      </p>
+                    ) : (
+                      <p className="text-[9px] text-muted">
+                        {table.status === 'CLEANING' ? 'Reset' : 'Ready'}
+                      </p>
+                    )}
+                  </div>
+                  {seated && seated.openRequests > 0 ? (
+                    <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-danger px-1 text-[8px] font-bold text-white">
+                      {seated.openRequests}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <TableWrap>
+          <Table>
+            <THead>
+              <TR>
+                <TH>Table</TH>
+                <TH>Zone</TH>
+                <TH>Status</TH>
+                <TH>Seated</TH>
+                <TH className="text-right">Orders</TH>
+                <TH className="text-right">Outstanding</TH>
+                <TH className="text-right">Requests</TH>
+                <TH className="text-right">QR</TH>
+              </TR>
+            </THead>
+            <TBody>
+              {visible.map((table) => (
+                <TR
+                  key={table.id}
+                  className="cursor-pointer"
+                  onClick={() => openTable(table)}
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') openTable(table);
+                  }}
+                >
+                  <TD className="money font-medium text-ink">{table.number}</TD>
+                  <TD>{table.zone?.name ?? 'Floor'}</TD>
+                  <TD>
+                    <StatusBadge status={table.status} />
+                  </TD>
+                  <TD className="text-[11.5px] text-muted">
+                    {table.session ? elapsedLabel(table.session.openedAt) : '—'}
+                  </TD>
+                  <TD className="text-right tabular">{table.session?.orderCount ?? '—'}</TD>
+                  <TD className="money text-right">
+                    {table.session ? formatTHB(table.session.outstandingTotal) : '—'}
+                  </TD>
+                  <TD className="text-right">{table.session?.openRequests || '—'}</TD>
+                  <TD className="text-right text-[11px]">{table.qr ? 'Issued' : '—'}</TD>
+                </TR>
+              ))}
+            </TBody>
+          </Table>
+        </TableWrap>
+      )}
 
       <Dialog open={Boolean(selected)} onOpenChange={(open) => !open && setSelected(null)}>
         {selected ? (

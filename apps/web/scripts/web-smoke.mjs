@@ -54,7 +54,9 @@ async function main() {
   const home = await request('/');
   check(
     'landing page renders',
-    home.status === 200 && /restaurant operations platform/i.test(home.text) && /one system/i.test(home.text),
+    home.status === 200 &&
+      /restaurant operations/i.test(home.text) &&
+      /from the table to the pass/i.test(home.text),
     home.status,
   );
   check('landing page avoids invented social proof', !/used by \d+|millions of/i.test(home.text));
@@ -73,7 +75,11 @@ async function main() {
   check('login through the web proxy succeeds', login.status === 200 && login.text.includes('owner@spicegarden.local'), login.text);
 
   const dashboard = await request('/app/dashboard');
-  check('dashboard renders with live data', dashboard.status === 200 && dashboard.text.includes('Gross sales today'), dashboard.status);
+  check(
+    'dashboard renders with live data',
+    dashboard.status === 200 && dashboard.text.includes('Gross sales'),
+    dashboard.status,
+  );
   check('dashboard shows a real currency figure', /฿[\d,]+\.\d{2}/.test(dashboard.text), 'no THB amount found');
 
   const tables = await request('/app/tables');

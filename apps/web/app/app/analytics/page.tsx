@@ -77,33 +77,42 @@ export default async function AnalyticsPage({
       />
       {error ? <InlineError>{error}</InlineError> : null}
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <StatCard
-          label="Gross sales"
-          value={formatTHB(overview?.grossSales ?? '0')}
-          hint={`${overview?.paidBills ?? 0} settled bills`}
-          tone="brand"
-        />
-        <StatCard
-          label="Net of refunds"
-          value={formatTHB(overview?.netSales ?? '0')}
-          hint={`Refunds ${formatTHB(overview?.refunds ?? '0')}`}
-        />
-        <StatCard
-          label="Average bill"
-          value={formatTHB(overview?.averageOrderValue ?? '0')}
-          hint={`${overview?.itemsSold ?? 0} items sold`}
-          tone="gold"
-        />
-        <StatCard
-          label="Cancellation rate"
-          value={`${overview?.cancellationRate ?? '0.0'}%`}
-          hint={`${overview?.cancelledOrders ?? 0} of ${overview?.orders ?? 0} orders`}
-          tone="olive"
-        />
+      <div className="metric-band -mx-4 sm:-mx-6 lg:-mx-8">
+        <div className="metric-cell px-4 sm:px-6 lg:px-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">Gross sales</p>
+          <p className="money mt-2 text-[25px] leading-none text-brand sm:text-[28px]">
+            {formatTHB(overview?.grossSales ?? '0')}
+          </p>
+          <p className="mt-2 text-[11px] text-muted">{overview?.paidBills ?? 0} settled bills</p>
+        </div>
+        <div className="metric-cell px-4 sm:px-6 lg:px-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">Net of refunds</p>
+          <p className="money mt-2 text-[25px] leading-none text-ink sm:text-[28px]">
+            {formatTHB(overview?.netSales ?? '0')}
+          </p>
+          <p className="mt-2 text-[11px] text-muted">Refunds {formatTHB(overview?.refunds ?? '0')}</p>
+        </div>
+        <div className="metric-cell px-4 sm:px-6 lg:px-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">Average bill</p>
+          <p className="money mt-2 text-[25px] leading-none text-gold sm:text-[28px]">
+            {formatTHB(overview?.averageOrderValue ?? '0')}
+          </p>
+          <p className="mt-2 text-[11px] text-muted">{overview?.itemsSold ?? 0} items sold</p>
+        </div>
+        <div className="metric-cell px-4 sm:px-6 lg:px-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+            Cancellation rate
+          </p>
+          <p className="money mt-2 text-[25px] leading-none text-olive sm:text-[28px]">
+            {overview?.cancellationRate ?? '0.0'}%
+          </p>
+          <p className="mt-2 text-[11px] text-muted">
+            {overview?.cancelledOrders ?? 0} of {overview?.orders ?? 0} orders
+          </p>
+        </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
         <Card>
           <CardHeader>
             <CardTitle>Daily gross sales</CardTitle>

@@ -118,6 +118,8 @@ export interface TableRow {
   status: string;
   posX: number;
   posY: number;
+  width: number;
+  height: number;
   qr: { id: string; prefix: string } | null;
   session: {
     id: string;

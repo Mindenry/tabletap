@@ -115,39 +115,6 @@ interface SessionState {
   requests: Array<{ id: string; type: string; status: string; createdAt: string }>;
 }
 
-const DISH_TONES = [
-  'from-[#e8ddc8] to-[#d8c6a6]',
-  'from-[#e6cfc0] to-[#d4a98f]',
-  'from-[#dfe3d0] to-[#c3cba9]',
-  'from-[#efe2c4] to-[#ddc48c]',
-  'from-[#e4d8cd] to-[#cbb3a0]',
-];
-
-function dishTone(seed: string): string {
-  let hash = 0;
-  for (let index = 0; index < seed.length; index += 1) hash = (hash * 31 + seed.charCodeAt(index)) % 997;
-  return DISH_TONES[hash % DISH_TONES.length]!;
-}
-
-function DishArt({ item, className }: { item: { name: string; category?: string }; className?: string }) {
-  const initials = item.name.slice(0, 2);
-  return (
-    <div
-      className={cn(
-        'relative grid place-items-center overflow-hidden bg-gradient-to-br',
-        dishTone(item.name),
-        className,
-      )}
-      aria-hidden
-    >
-      <div className="absolute inset-0 grain opacity-60" />
-      <span className="relative font-[family-name:var(--font-display)] text-[22px] text-[#4b4335]/60">
-        {initials}
-      </span>
-    </div>
-  );
-}
-
 function estimateLine(line: CartLine): number {
   return (Number(line.basePrice) + Number(line.variantDelta) + Number(line.modifiersTotal)) * line.quantity;
 }
@@ -338,105 +305,100 @@ export function GuestMenu({
 
   return (
     <div className="min-h-screen bg-paper pb-28">
-      <header className="relative overflow-hidden bg-night px-5 pb-8 pt-6 text-[#f6f2ea]">
-        <div className="absolute inset-0 grain opacity-[0.18]" aria-hidden />
-        <div
-          aria-hidden
-          className="absolute -right-24 -top-28 h-[360px] w-[360px] animate-drift rounded-full bg-[radial-gradient(circle_at_center,rgba(180,81,44,0.35),transparent_62%)]"
-        />
-        <div className="relative mx-auto flex w-full max-w-3xl animate-rise flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand">
-              TableTap · {restaurant.branch}
-            </p>
-            <h1 className="mt-2 font-[family-name:var(--font-display)] text-[30px] leading-tight text-white">
-              {restaurant.name}
-            </h1>
-            <p className="mt-1 text-[13px] text-[#a8a194]">
-              Table {table.number} · {table.name ?? 'Dine in'}
-            </p>
+      <header className="bg-night px-5 pb-7 pt-6 text-[#f3ede2]">
+        <div className="mx-auto w-full max-w-2xl animate-rise">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[9.5px] uppercase tracking-[0.18em] text-[#8f8574]">{restaurant.branch}</p>
+              <h1 className="mt-1 truncate font-display text-[34px] leading-none text-white">
+                {restaurant.name}
+              </h1>
+              <p className="mt-2 text-[11.5px] text-[#a49a88]">
+                Table {table.number}
+                {table.name ? ` · ${table.name}` : ''}
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-1.5">
+              <button
+                type="button"
+                onClick={() => request('CALL_WAITER')}
+                disabled={requestBusy}
+                className="inline-flex h-8 items-center gap-1.5 rounded-sm border border-[#3a3327] px-2.5 text-[10.5px] font-medium text-[#e9e3d6] transition-colors hover:border-[#6d5a2f] hover:text-white"
+              >
+                <BellRing className="h-3 w-3" /> Call waiter
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setView(view === 'menu' ? 'orders' : 'menu');
+                  if (view === 'menu') void refreshSession();
+                }}
+                className="inline-flex h-8 items-center gap-1.5 rounded-sm bg-brand px-2.5 text-[10.5px] font-semibold text-white transition-colors hover:bg-brand-deep"
+              >
+                {view === 'menu' ? (
+                  <>
+                    <Clock className="h-3 w-3" /> My orders
+                    {activeOrders.length > 0 ? ` · ${activeOrders.length}` : ''}
+                  </>
+                ) : (
+                  <>
+                    <Utensils className="h-3 w-3" /> Menu
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-          <div className="flex flex-row items-center gap-2 sm:flex-col sm:items-end">
-            <button
-              type="button"
-              onClick={() => request('CALL_WAITER')}
-              disabled={requestBusy}
-              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-white/10"
-            >
-              <BellRing className="h-3.5 w-3.5" /> Call waiter
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setView(view === 'menu' ? 'orders' : 'menu');
-                if (view === 'menu') void refreshSession();
-              }}
-              className="inline-flex items-center gap-1.5 rounded-full bg-brand px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-brand-deep"
-            >
-              {view === 'menu' ? (
-                <>
-                  <Clock className="h-3.5 w-3.5" /> My orders
-                  {activeOrders.length > 0 ? ` · ${activeOrders.length}` : ''}
-                </>
-              ) : (
-                <>
-                  <Utensils className="h-3.5 w-3.5" /> Menu
-                </>
-              )}
-            </button>
-          </div>
+          <div className="mt-5 h-px bg-[#3a3327]" />
         </div>
       </header>
 
       {view === 'menu' ? (
         <main className="mx-auto w-full max-w-3xl px-4">
-          <div className="sticky top-0 z-20 -mx-4 mb-2 px-4 pb-2 pt-1">
-            <div className="-mt-4 rounded-xl border border-line bg-surface-raised/95 p-3 shadow-card backdrop-blur-md">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted" />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search dishes, drinks, allergies…"
-                  aria-label="Search the menu"
-                  className="h-10 w-full rounded-md border border-line bg-paper/60 pl-9 pr-9 text-[13px] focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"
-                />
-                {search ? (
-                  <button
-                    type="button"
-                    onClick={() => setSearch('')}
-                    aria-label="Clear search"
-                    className="absolute right-2 top-2 rounded p-1 text-muted hover:bg-paper-deep"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                ) : null}
-              </div>
-              {!search ? (
-                <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin [mask-image:linear-gradient(to_right,black_88%,transparent)]">
-                  {menu.map((category) => (
-                    <button
-                      key={category.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveCategory(category.id);
-                        document
-                          .getElementById(`cat-${category.id}`)
-                          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }}
-                      className={cn(
-                        'shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors',
-                        activeCategory === category.id
-                          ? 'bg-ink text-paper'
-                          : 'bg-paper-deep text-ink-soft hover:bg-[#e9e2d3]',
-                      )}
-                    >
-                      {category.name}
-                    </button>
-                  ))}
-                </div>
+          <div className="sticky top-0 z-20 -mx-4 mb-1 bg-paper px-4 pb-0 pt-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-0 top-2.5 h-3.5 w-3.5 text-muted-soft" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search dishes, drinks, allergies…"
+                aria-label="Search the menu"
+                className="h-9 w-full border-0 border-b border-line bg-transparent pl-6 pr-8 text-[13px] text-ink placeholder:text-muted-soft focus:border-ink focus:outline-none focus:ring-0"
+              />
+              {search ? (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search"
+                  className="absolute right-0 top-1.5 p-1 text-muted hover:text-ink"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               ) : null}
             </div>
+            {!search ? (
+              <div className="mt-2 flex gap-5 overflow-x-auto pr-6 scrollbar-thin [mask-image:linear-gradient(to_right,black_92%,transparent)]">
+                {menu.map((category) => (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveCategory(category.id);
+                      document
+                        .getElementById(`cat-${category.id}`)
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className={cn(
+                      'shrink-0 border-b-2 pb-1.5 text-[12px] font-medium transition-colors',
+                      activeCategory === category.id
+                        ? 'border-ink text-ink'
+                        : 'border-transparent text-muted hover:text-ink',
+                    )}
+                  >
+                    {category.name}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           {filteredMenu.length === 0 ? (
@@ -461,7 +423,7 @@ export function GuestMenu({
                     </div>
                     <span className="text-[11px] text-muted">{category.items.length} items</span>
                   </div>
-                  <div className="grid gap-2.5 sm:grid-cols-2">
+                  <div className="border-t border-line">
                     {category.items.map((item) => (
                       <button
                         key={item.id}
@@ -469,42 +431,29 @@ export function GuestMenu({
                         disabled={item.soldOut}
                         onClick={() => setDetail(item)}
                         className={cn(
-                          'group flex gap-3 rounded-xl border border-line bg-surface-raised p-3 text-left transition-all duration-300',
-                          item.soldOut
-                            ? 'opacity-60'
-                            : 'hover:-translate-y-1 hover:border-line-strong hover:shadow-[var(--shadow-lift)]',
+                          'group flex w-full items-center gap-4 border-b border-line py-3.5 text-left transition-colors',
+                          item.soldOut ? 'opacity-50' : 'hover:bg-surface/70',
                         )}
                       >
-                        <DishArt
-                          item={{ name: item.name }}
-                          className="h-[76px] w-[76px] shrink-0 rounded-md"
-                        />
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-[13px] font-semibold leading-snug">{item.name}</p>
-                            {item.isPopular ? (
-                              <span className="shrink-0 rounded-full bg-gold-soft px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-gold">
-                                Popular
-                              </span>
-                            ) : null}
-                          </div>
-                          {item.nameEn ? <p className="text-[11px] text-muted">{item.nameEn}</p> : null}
-                          <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted">
-                            {item.descriptionEn ?? item.description}
-                          </p>
-                          <div className="mt-1.5 flex items-center justify-between">
-                            <span className="text-[13px] font-semibold tabular">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <p className="font-display text-[19px] leading-tight text-ink">{item.name}</p>
+                            <span className="money shrink-0 text-[13px] text-ink">
                               {formatTHB(item.basePrice)}
                             </span>
-                            <span
-                              className={cn(
-                                'text-[10px] font-semibold uppercase tracking-wide',
-                                item.soldOut ? 'text-danger' : 'text-success',
-                              )}
-                            >
-                              {item.soldOut ? 'Sold out' : `${item.prepMinutes} min`}
-                            </span>
                           </div>
+                          {item.nameEn ? (
+                            <p className="mt-0.5 text-[9.5px] uppercase tracking-[0.12em] text-muted-soft">
+                              {item.nameEn}
+                            </p>
+                          ) : null}
+                          <p className="mt-1 line-clamp-2 text-[11.5px] leading-relaxed text-muted">
+                            {item.descriptionEn ?? item.description}
+                          </p>
+                          <p className="mt-1 text-[9px] uppercase tracking-[0.14em] text-muted-soft">
+                            {item.soldOut ? 'Sold out' : `${item.prepMinutes} min`}
+                            {item.isPopular ? ' · popular' : ''}
+                          </p>
                         </div>
                       </button>
                     ))}
@@ -519,7 +468,7 @@ export function GuestMenu({
               type="button"
               onClick={() => request('REQUEST_WATER')}
               disabled={requestBusy}
-              className="rounded-full border border-line-strong bg-surface px-3 py-1.5 text-[11px] font-medium hover:bg-paper-deep"
+              className="border border-line-strong bg-surface px-3 py-1.5 text-[11px] font-medium hover:bg-paper-deep"
             >
               ขอน้ำ / Water
             </button>
@@ -527,7 +476,7 @@ export function GuestMenu({
               type="button"
               onClick={() => request('REQUEST_UTENSILS')}
               disabled={requestBusy}
-              className="rounded-full border border-line-strong bg-surface px-3 py-1.5 text-[11px] font-medium hover:bg-paper-deep"
+              className="border border-line-strong bg-surface px-3 py-1.5 text-[11px] font-medium hover:bg-paper-deep"
             >
               ขอช้อนส้อม / Utensils
             </button>
@@ -535,7 +484,7 @@ export function GuestMenu({
               type="button"
               onClick={() => request('REQUEST_BILL')}
               disabled={requestBusy}
-              className="rounded-full border border-line-strong bg-surface px-3 py-1.5 text-[11px] font-medium hover:bg-paper-deep"
+              className="border border-line-strong bg-surface px-3 py-1.5 text-[11px] font-medium hover:bg-paper-deep"
             >
               <Receipt className="mr-1 inline h-3 w-3" /> เก็บเงิน / Bill
             </button>
@@ -899,12 +848,12 @@ function ItemSheet({
         onClick={onClose}
       />
       <div className="relative max-h-[92vh] w-full max-w-lg animate-slide-up overflow-y-auto rounded-t-2xl border border-line bg-surface-raised scrollbar-thin sm:animate-scale-in sm:rounded-2xl">
-        <div className="relative">
-          <DishArt item={{ name: item.name }} className="h-32 w-full" />
+        <div className="relative border-b border-line px-5 pb-3 pt-4">
+          <p className="text-[9.5px] uppercase tracking-[0.18em] text-muted-soft">{item.nameEn ?? 'Menu'}</p>
           <button
             type="button"
             onClick={onClose}
-            className="absolute right-3 top-3 rounded-full bg-white/80 p-1.5 text-ink hover:bg-white"
+            className="absolute right-3 top-3 rounded-sm p-1.5 text-muted hover:bg-paper-deep hover:text-ink"
             aria-label="Close"
           >
             <X className="h-4 w-4" />

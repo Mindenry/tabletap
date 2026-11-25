@@ -74,7 +74,7 @@ export default async function PlatformDashboardPage() {
       />
       {error ? <InlineError>{error}</InlineError> : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="metric-band -mx-5">
         <StatCard
           label="Tenants"
           value={dashboard?.tenants ?? 0}
@@ -100,7 +100,7 @@ export default async function PlatformDashboardPage() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+      <div className="grid items-start gap-4 lg:grid-cols-[1.6fr_1fr]">
         <Card id="tenants">
           <CardHeader>
             <CardTitle>Tenants</CardTitle>
@@ -124,19 +124,23 @@ export default async function PlatformDashboardPage() {
                   {tenants.map((tenant) => (
                     <TR key={tenant.id}>
                       <TD>
-                        <p className="font-medium text-ink">{tenant.name}</p>
-                        <p className="text-[11px] text-muted">
+                        <p className="whitespace-nowrap font-medium text-ink">{tenant.name}</p>
+                        <p className="whitespace-nowrap text-[11px] text-muted">
                           /{tenant.slug} · joined {formatDate(tenant.createdAt)}
                         </p>
                       </TD>
-                      <TD className="text-[12px]">{tenant.subscription?.planName ?? '—'}</TD>
+                      <TD className="whitespace-nowrap text-[12px]">
+                        {tenant.subscription?.planName ?? '—'}
+                      </TD>
                       <TD className="text-right tabular">{tenant.branches}</TD>
                       <TD className="text-right tabular">{tenant.members}</TD>
-                      <TD className="text-right tabular">{formatTHB(tenant.sales30d)}</TD>
+                      <TD className="whitespace-nowrap text-right tabular">{formatTHB(tenant.sales30d)}</TD>
                       <TD>
-                        <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5">
                           <StatusBadge status={tenant.status} />
-                          {tenant.subscription ? <StatusBadge status={tenant.subscription.status} /> : null}
+                          {tenant.subscription && tenant.subscription.status !== 'ACTIVE' ? (
+                            <StatusBadge status={tenant.subscription.status} />
+                          ) : null}
                         </div>
                       </TD>
                       <TD className="text-right">

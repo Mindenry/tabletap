@@ -253,7 +253,7 @@ export function MenuManager({
                         onClick={() => toggleAvailability(item)}
                         disabled={busy === item.id}
                         className={cn(
-                          'rounded-full px-2 py-0.5 text-[11px] font-medium',
+                          'rounded-sm px-1.5 py-0.5 text-[10.5px] font-medium',
                           item.availableInBranch
                             ? 'bg-success-soft text-success'
                             : 'bg-danger-soft text-danger',

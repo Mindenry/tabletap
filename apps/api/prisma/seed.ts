@@ -837,11 +837,13 @@ async function createTables(tenantId: string, branchId: string, code: string, co
   ];
   const tables = [];
   let tableNumber = 1;
+  let rowOffset = 0;
   for (const [zoneIndex, zone] of zones.entries()) {
     if (zone.count <= 0) continue;
     const createdZone = await prisma.tableZone.create({
       data: { branchId, name: zone.name, displayOrder: zoneIndex },
     });
+    const zoneRows = Math.ceil(zone.count / 5);
     for (let index = 0; index < zone.count; index += 1) {
       const number = String(tableNumber).padStart(2, '0');
       const table = await prisma.diningTable.create({
@@ -851,16 +853,17 @@ async function createTables(tenantId: string, branchId: string, code: string, co
           number,
           name: `${zone.name} ${number}`,
           capacity: zone.name === 'VIP' ? 8 : zone.name === 'Private Room' ? 12 : 4,
-          posX: new Prisma.Decimal(60 + (index % 5) * 180),
-          posY: new Prisma.Decimal(60 + Math.floor(index / 5) * 150 + zoneIndex * 30),
-          width: new Prisma.Decimal(120),
-          height: new Prisma.Decimal(80),
+          posX: new Prisma.Decimal(80 + (index % 5) * 190),
+          posY: new Prisma.Decimal(80 + (rowOffset + Math.floor(index / 5)) * 170),
+          width: new Prisma.Decimal(130),
+          height: new Prisma.Decimal(90),
           status: 'AVAILABLE',
         },
       });
       tables.push(table);
       tableNumber += 1;
     }
+    rowOffset += zoneRows;
   }
 
   // Deterministic demo QR tokens so printed/kiosk links stay stable.

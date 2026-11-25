@@ -37,30 +37,50 @@ Guest scans QR ──► Menu & cart ──► Order (server priced, idempotent)
 | ---------------------------------------- | -------------------------------- |
 | ![Kitchen](docs/screenshots/kitchen.png) | ![POS](docs/screenshots/pos.png) |
 
-| Analytics                                    | Guest menu (mobile)                                   |
-| -------------------------------------------- | ----------------------------------------------------- |
-| ![Analytics](docs/screenshots/analytics.png) | ![Guest menu](docs/screenshots/guest-menu-mobile.png) |
+| Analytics                                    | Menu management                    |
+| -------------------------------------------- | ---------------------------------- |
+| ![Analytics](docs/screenshots/analytics.png) | ![Menu](docs/screenshots/menu.png) |
+
+| Guest menu — phone                                    | Staff overview — phone                           |
+| ----------------------------------------------------- | ------------------------------------------------ |
+| ![Guest menu](docs/screenshots/guest-menu-mobile.png) | ![Mobile](docs/screenshots/dashboard-mobile.png) |
 
 | Landing                                  | Sign in                                |
 | ---------------------------------------- | -------------------------------------- |
 | ![Landing](docs/screenshots/landing.png) | ![Sign in](docs/screenshots/login.png) |
 
+| Guest menu — desktop                           | Platform administration                    |
+| ---------------------------------------------- | ------------------------------------------ |
+| ![Guest menu](docs/screenshots/guest-menu.png) | ![Platform](docs/screenshots/platform.png) |
+
 Screenshots are captured from the production build with Playwright
-(`pnpm screenshots`) against the seeded demo, not mocked up.
+(`pnpm screenshots`) against the seeded demo, not mocked up. The script writes
+`.screenshots/` and publishes the curated set into `docs/screenshots/`.
 
 ---
 
 ## Design system
 
+The interface reads as a **service ledger**: the artefacts a restaurant already trusts — the
+printed check, the reservation book, the ticket on the pass, the brass rail — rebuilt as a screen
+system. Type carries the hierarchy; colour is reserved for state and money.
+
 - **Type** — Fraunces (display) and IBM Plex Sans Thai (UI, Latin + Thai subsets), both
-  **self-hosted** in `apps/web/app/fonts` so builds never depend on a network fetch.
-- **Palette** — warm paper `#f7f3ec`, ink `#17150f`, terracotta `#b4512c`, olive, gold. No purple,
-  no gradient text, no glow.
-- **Motion** — scroll reveals via IntersectionObserver, count-up KPIs, page fade transitions,
-  pointer-following card highlights, hover lifts, bottom-sheet and dialog entrances. All motion is
-  disabled under `prefers-reduced-motion`.
-- **Components** — buttons, inputs, dialogs, tabs, tables, badges, stat cards, empty/skeleton/error
-  states, toast notifications, command-free navigation with permission-aware items.
+  **self-hosted** in `apps/web/app/fonts` so builds never depend on a network fetch. Money uses
+  tabular Plex figures so the `฿` glyph is correct at every size.
+- **Palette** — porcelain paper `#f3ede2`, ink `#16130e`, oxblood `#7a3030`, brass `#9a7733`,
+  sage `#56674e`, and a near-black `#12100b` for the staff chrome. No purple, no gradient text,
+  no glow, no decorative grain.
+- **Surfaces** — one declaration per element: a hairline border _or_ a shadow, never both. Radii
+  stay between 3px (stamps) and 18px (sheets). Cards are border-only; depth appears only on
+  overlays and modals.
+- **Layout** — a fixed staff sidebar, a live service rail (tenant · branch · section · clock), a
+  horizontal metric band instead of KPI cards, a positioned floor plan drawn from persisted
+  coordinates, and a typographic guest menu with underlined category tabs.
+- **Motion** — scroll reveals via IntersectionObserver, count-up figures, page transitions,
+  dialog and sheet entrances. All motion is disabled under `prefers-reduced-motion`.
+- **Components** — buttons, inputs, dialogs, tabs, tables, status stamps, metric band,
+  empty/skeleton/error states, toast notifications, and permission-aware navigation.
 
 ---
 

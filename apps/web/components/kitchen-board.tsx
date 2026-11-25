@@ -207,31 +207,32 @@ export function KitchenBoard({
   return (
     <div className={cn('space-y-4', fullscreen && 'space-y-5')}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center border border-line bg-surface-raised">
           <button
             type="button"
             onClick={() => setStation('ALL')}
+            aria-pressed={station === 'ALL'}
             className={cn(
-              'rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors',
-              station === 'ALL' ? 'bg-ink text-paper' : 'bg-surface text-ink-soft hover:bg-paper-deep',
+              'border-r border-line px-3 py-1.5 text-[11.5px] font-semibold transition-colors',
+              station === 'ALL' ? 'bg-ink text-paper' : 'text-ink-soft hover:bg-paper-deep',
             )}
           >
             All stations
           </button>
-          {stations.map((candidate) => (
+          {stations.map((candidate, index) => (
             <button
               key={candidate.id}
               type="button"
               onClick={() => setStation(candidate.id)}
+              aria-pressed={station === candidate.id}
               className={cn(
-                'rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors',
-                station === candidate.id
-                  ? 'bg-ink text-paper'
-                  : 'bg-surface text-ink-soft hover:bg-paper-deep',
+                'px-3 py-1.5 text-[11.5px] font-medium transition-colors',
+                index < stations.length - 1 && 'border-r border-line',
+                station === candidate.id ? 'bg-ink text-paper' : 'text-ink-soft hover:bg-paper-deep',
               )}
             >
               {candidate.name}
-              <span className="ml-1.5 text-[10px] opacity-60">
+              <span className="ml-1.5 text-[10px] tabular opacity-60">
                 {tickets.filter((ticket) => ticket.station.id === candidate.id).length}
               </span>
             </button>
@@ -241,8 +242,10 @@ export function KitchenBoard({
         <div className="flex items-center gap-2">
           <span
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium',
-              connected ? 'bg-success-soft text-success' : 'bg-paper-deep text-muted',
+              'inline-flex items-center gap-1.5 border px-2 py-1 text-[10.5px] font-medium',
+              connected
+                ? 'border-success/30 bg-success-soft text-success'
+                : 'border-line bg-paper-deep text-muted',
             )}
           >
             <span className={cn('h-1.5 w-1.5 rounded-full', connected ? 'bg-success' : 'bg-muted')} />
@@ -258,17 +261,15 @@ export function KitchenBoard({
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-3 divide-x divide-line border-y border-line">
         {[
           { label: 'New', value: counts.pending, tone: 'text-brand' },
           { label: 'In progress', value: counts.preparing, tone: 'text-gold' },
           { label: 'Ready to serve', value: counts.ready, tone: 'text-success' },
         ].map((stat) => (
-          <div key={stat.label} className="rounded-lg border border-line bg-surface-raised px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">{stat.label}</p>
-            <p className={cn('mt-0.5 text-[24px] font-semibold leading-none tabular', stat.tone)}>
-              {stat.value}
-            </p>
+          <div key={stat.label} className="px-1 py-2.5 sm:px-3">
+            <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted">{stat.label}</p>
+            <p className={cn('money mt-1 text-[22px] leading-none', stat.tone)}>{stat.value}</p>
           </div>
         ))}
       </div>
@@ -295,10 +296,10 @@ export function KitchenBoard({
               <article
                 key={ticket.id}
                 className={cn(
-                  'flex flex-col rounded-lg border bg-surface-raised shadow-[0_1px_2px_rgba(25,23,18,0.04)]',
+                  'flex flex-col rounded-sm border bg-surface-raised',
                   ticket.status === 'PENDING' && 'border-brand/40',
                   ticket.status === 'READY' && 'border-success/40',
-                  late && 'border-danger/50',
+                  late && 'border-danger/60',
                 )}
               >
                 <header className="flex items-start justify-between gap-2 border-b border-line px-4 py-3">
@@ -472,9 +473,9 @@ export function KitchenBoard({
         </DialogContent>
       </Dialog>
 
-      <p className="text-[11px] text-muted">
-        {tick >= 0 ? 'Timers tick every second and refresh from the server every 20 seconds.' : ''} Rejecting
-        a ticket reverses only that station&apos;s stock movements.
+      <p className="border-t border-line pt-2 text-[10.5px] text-muted">
+        {tick >= 0 ? 'Timers tick every second; the board resyncs every 20 seconds.' : ''} Rejecting a ticket
+        reverses only that station&apos;s stock movements.
       </p>
     </div>
   );

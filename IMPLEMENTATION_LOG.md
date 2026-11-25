@@ -167,3 +167,73 @@ Fix: stop dev, delete `.next`, restart. Documented in README and the local-devel
 - Verified over LAN: web 200, API 200, CORS allow-origin correct, QR links point at the LAN URL, QR PNG
   downloadable, realtime smoke passes against `http://192.168.1.107:4100`, and a Playwright browser at
   `http://192.168.1.107:3100` shows the kitchen socket as **Live** with zero console errors.
+
+## 2026-11-26 — Session 3 (redesign)
+
+### Direction
+
+The brief was a full visual replacement, not a restyle. The previous system was a “warm SaaS”
+palette (cream + terracotta) with soft cards, KPI tiles, glass category bars and gradient dish
+placeholders. It was replaced with a **service ledger**: the artefacts a restaurant already trusts
+— the printed check, the ticket on the pass, the reservation book, the brass rail — rebuilt as a
+screen system.
+
+- Porcelain paper `#f3ede2`, ink `#16130e`, oxblood `#7a3030`, brass `#9a7733`, sage `#56674e`,
+  near-black `#12100b` staff chrome.
+- One surface declaration per element: a hairline border **or** a shadow, never both. Radii 3–18px.
+- Serif display (Fraunces) carries hierarchy; colour is reserved for state and money.
+- Removed: eyebrows/kickers, section numbers, glass blur, grain overlays, gradient dish art,
+  decorative halos, pill-shaped controls, KPI cards, card hover lifts with shadows.
+
+### What was rebuilt
+
+- **Tokens + utilities** (`app/globals.css`) — new palette, display and tabular money faces, metric
+  band, floor canvas grid, reveal/enter motion, reduced-motion guards, print rules.
+- **Primitives** — `Card` (border-only), `Button` (ink/oxblood, square action shapes), `Input`
+  (hairline fields), `PageHeader` (display title, eyebrow prop accepted but deliberately not
+  rendered), status stamps instead of pills.
+- **App shell** — near-black sidebar with brass marks, grouped navigation, branch switcher, and a
+  new **service rail** showing tenant · branch · section · live Bangkok clock.
+- **Overview** — a horizontal metric band (30-day gross, orders, average bill, tables seated) and an
+  asymmetric layout: chart, “Service now”, “Needs attention”, recent orders, best sellers.
+- **Floor** — replaced the table-card grid with a real positioned canvas drawn from persisted
+  `posX/posY/width/height`, zone labels per band, status dots, outstanding totals, and a plan/list
+  toggle. Zone filters became a segmented control.
+- **Guest menu** — typographic menu: category tabs ruled underneath, dish rows separated by
+  hairlines, no invented dish images, dark header, sticky search within the paper surface.
+- **Kitchen** — squared station filter, divided stat band, border-only tickets, squared live chip.
+- **POS / analytics / platform** — metric bands instead of stat cards, aligned chart card tops,
+  receipt-like line items, clearer tenant rows (single status stamp, no stretched card).
+- **Marketing and sign-in** — poster/ledger landing page (dark “pass” panel, timing section,
+  capability index, receipt panel) and a split editorial sign-in with underline fields and
+  click-to-fill demo roles.
+
+### Bugs found by looking at the rendered result
+
+1. **Seed floor layout stacked zones.** `createTables` added only `zoneIndex * 30` to `posY` while
+   rows are 150px apart, so Indoor, Terrace, VIP and Private Room tables overprinted each other.
+   Fixed by laying each zone out in its own row band (`rowOffset += ceil(count / 5)`), reseeded, and
+   re-captured. The canvas now shows every zone.
+2. **`TableRow` had no `width`/`height`.** The type only carried positions; the new canvas needs the
+   stored rectangle. Added to `lib/types.ts` and caught by `tsc --noEmit`.
+3. **Platform tenant table showed two identical ACTIVE stamps** (tenant status and subscription
+   status) and the card stretched to the height of the right-hand column. Now one stamp, a second
+   only when the subscription differs from ACTIVE, and `items-start` on the grid.
+4. **Money glyph.** `.money` used a mono stack without the Thai subset, so `฿` fell back. Switched to
+   tabular Plex figures.
+
+### Docs and capture
+
+- `scripts/capture.mjs` now also captures the platform dashboard and publishes the curated set into
+  `docs/screenshots/`, so the README gallery cannot drift from the build that was measured.
+- README design-system section rewritten to match the shipped system.
+
+### Verification
+
+- `pnpm --filter @tabletap/web exec tsc --noEmit` → clean.
+- `pnpm --filter @tabletap/web build` → pass; `next start` serves the redesign.
+- Playwright captured **12 screenshots** at 1440×900 and 390×844 with **no console errors**.
+- Database reset + reseed → 2 tenants, 4 branches, 60 tables, 34 items, 607 orders.
+- `pnpm --filter @tabletap/api test` → 30/30.
+- API integration smoke → all checks pass; web smoke → 24/24.
+- `pnpm --filter @tabletap/web test:realtime` → staff, kitchen and guest rooms all receive events.

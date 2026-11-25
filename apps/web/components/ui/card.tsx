@@ -2,27 +2,19 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn(
-        'rounded-lg border border-line bg-surface-raised shadow-[0_1px_2px_rgba(25,23,18,0.03)]',
-        className,
-      )}
-      {...props}
-    />
-  );
+  return <div className={cn('rounded-lg border border-line bg-surface-raised', className)} {...props} />;
 }
 
 export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex items-start justify-between gap-4 px-5 pt-5', className)} {...props} />;
+  return <div className={cn('flex items-start justify-between gap-4 px-5 pt-4', className)} {...props} />;
 }
 
 export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn('text-[15px] font-semibold tracking-tight text-ink', className)} {...props} />;
+  return <h3 className={cn('text-[14px] font-semibold tracking-[-0.01em] text-ink', className)} {...props} />;
 }
 
 export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn('text-[13px] text-muted', className)} {...props} />;
+  return <p className={cn('text-[12.5px] text-muted', className)} {...props} />;
 }
 
 export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
@@ -39,6 +31,10 @@ export function Separator({ className }: { className?: string }) {
   return <div role="separator" className={cn('h-px w-full bg-line', className)} />;
 }
 
+/**
+ * A metric cell for the horizontal metric band. The band owns the dividers, so
+ * this component never draws its own card.
+ */
 export function StatCard({
   label,
   value,
@@ -54,28 +50,23 @@ export function StatCard({
 }) {
   const toneClass = {
     default: 'text-ink',
-    brand: 'text-brand-deep',
+    brand: 'text-brand',
     olive: 'text-olive',
     gold: 'text-gold',
   }[tone];
   return (
-    <Card className={cn('p-4 sm:p-5', className)}>
-      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted sm:text-[12px]">{label}</p>
-      <p
-        className={cn(
-          'mt-2 text-[22px] font-semibold leading-none tracking-tight tabular sm:text-[26px]',
-          toneClass,
-        )}
-      >
+    <div className={cn('metric-cell', className)}>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">{label}</p>
+      <p className={cn('money mt-2 text-[24px] font-medium leading-none sm:text-[27px]', toneClass)}>
         {value}
       </p>
-      {hint ? <p className="mt-2 text-[11px] leading-snug text-muted sm:text-[12px]">{hint}</p> : null}
-    </Card>
+      {hint ? <p className="mt-2 text-[11px] leading-snug text-muted">{hint}</p> : null}
+    </div>
   );
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse-soft rounded-md bg-paper-deep', className)} />;
+  return <div className={cn('animate-pulse-soft rounded-sm bg-paper-deep', className)} />;
 }
 
 export function EmptyState({
@@ -94,14 +85,14 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-line-strong bg-surface/60 px-6 py-14 text-center',
+        'flex flex-col items-center justify-center gap-3 border border-dashed border-line-strong bg-surface/60 px-6 py-14 text-center',
         className,
       )}
     >
-      {icon ? <div className="text-muted">{icon}</div> : null}
+      {icon ? <div className="text-muted-soft">{icon}</div> : null}
       <div className="space-y-1">
-        <p className="text-sm font-semibold text-ink">{title}</p>
-        {description ? <p className="max-w-sm text-[13px] text-muted">{description}</p> : null}
+        <p className="font-display text-[19px] text-ink">{title}</p>
+        {description ? <p className="mx-auto max-w-sm text-[12.5px] text-muted">{description}</p> : null}
       </div>
       {action}
     </div>
@@ -110,10 +101,7 @@ export function EmptyState({
 
 export function InlineError({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      role="alert"
-      className="rounded-md border border-danger/25 bg-danger-soft px-3 py-2 text-[13px] text-danger"
-    >
+    <div role="alert" className="border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">
       {children}
     </div>
   );

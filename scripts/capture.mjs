@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { mkdirSync } from 'node:fs';
+import { copyFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const WEB = process.env.WEB_URL ?? 'http://localhost:3100';
@@ -113,7 +113,41 @@ await mobilePage.waitForTimeout(2500);
 await mobilePage.screenshot({ path: join(OUT, '11-dashboard-mobile.png'), fullPage: false });
 console.log('captured 11-dashboard-mobile');
 
+const platformContext = await browser.newContext({ viewport: desktop, deviceScaleFactor: 1 });
+const platformPage = await platformContext.newPage();
+await platformPage.goto(`${WEB}/login`, { waitUntil: 'domcontentloaded' });
+await platformPage.fill('#email', 'platform@tabletap.local');
+await platformPage.fill('#password', 'TableTap!2026');
+await platformPage.click('button[type="submit"]');
+await platformPage.waitForURL('**/platform/dashboard', { timeout: 30000 });
+await platformPage.waitForTimeout(900);
+await platformPage.screenshot({ path: join(OUT, '12-platform.png'), fullPage: false });
+console.log('captured 12-platform');
+
 await browser.close();
+
+// The curated set that README links to. Keeping this in the capture script means
+// docs can never drift from the build that was actually measured.
+const DOCS = join(process.cwd(), 'docs', 'screenshots');
+mkdirSync(DOCS, { recursive: true });
+const PUBLISH = {
+  '01-landing.png': 'landing.png',
+  '02-login.png': 'login.png',
+  '03-dashboard.png': 'dashboard.png',
+  '04-floor.png': 'floor-plan.png',
+  '05-kitchen.png': 'kitchen.png',
+  '06-pos.png': 'pos.png',
+  '07-analytics.png': 'analytics.png',
+  '08-menu.png': 'menu.png',
+  '09-guest-menu.png': 'guest-menu.png',
+  '10-guest-mobile.png': 'guest-menu-mobile.png',
+  '11-dashboard-mobile.png': 'dashboard-mobile.png',
+  '12-platform.png': 'platform.png',
+};
+for (const [source, target] of Object.entries(PUBLISH)) {
+  copyFileSync(join(OUT, source), join(DOCS, target));
+}
+console.log(`published ${Object.keys(PUBLISH).length} screenshots to docs/screenshots`);
 
 if (errors.length > 0) {
   console.log('\nConsole errors:');
