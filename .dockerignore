@@ -1,0 +1,17 @@
+node_modules
+.pnpm-store
+.next
+dist
+coverage
+.git
+.env
+.env.local
+*.log
+tests/load/results
+docs
+README.md
+PROJECT_STATUS.md
+IMPLEMENTATION_LOG.md
+KNOWN_ISSUES.md
+DECISIONS.md
+ARCHITECTURE.md

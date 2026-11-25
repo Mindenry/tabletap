@@ -1,0 +1,33 @@
+{
+  "name": "tabletap",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "dev:api": "pnpm --filter @tabletap/api dev",
+    "dev:web": "pnpm --filter @tabletap/web dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:integration": "pnpm --filter @tabletap/api test:integration && pnpm --filter @tabletap/web test:integration",
+    "test:api": "pnpm --filter @tabletap/api test:integration",
+    "test:web": "pnpm --filter @tabletap/web test:integration",
+    "db:generate": "pnpm --filter @tabletap/api db:generate",
+    "db:migrate": "pnpm --filter @tabletap/api db:migrate",
+    "db:deploy": "pnpm --filter @tabletap/api db:deploy",
+    "db:seed": "pnpm --filter @tabletap/api db:seed",
+    "db:studio": "pnpm --filter @tabletap/api db:studio",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md,prisma,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,prisma,yml,yaml}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "turbo": "^2.5.8",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,117 @@
+name: tabletap
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tabletap-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tabletap
+      POSTGRES_PASSWORD: tabletap
+      POSTGRES_DB: tabletap
+    ports:
+      - '5440:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tabletap -d tabletap']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: tabletap-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes', '--maxmemory-policy', 'noeviction']
+    ports:
+      - '6390:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Optional S3-compatible object storage. Enable with:
+  #   docker compose --profile storage up -d
+  # If the image cannot be pulled on your host, TableTap falls back to the
+  # local filesystem storage driver (STORAGE_DRIVER=local), which is the
+  # development default. See docs/deployment/storage.md.
+  minio:
+    profiles: ['storage']
+    image: minio/minio:latest
+    container_name: tabletap-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9101"
+    environment:
+      MINIO_ROOT_USER: tabletap
+      MINIO_ROOT_PASSWORD: tabletap123
+    ports:
+      - '9100:9000'
+      - '9101:9001'
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: tabletap-mailpit
+    restart: unless-stopped
+    ports:
+      - '1125:1025'
+      - '8125:8025'
+
+  api:
+    profiles: ['full']
+    # Host port 4100 to avoid colliding with other local services.
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: tabletap-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://tabletap:tabletap@postgres:5432/tabletap?schema=public
+      REDIS_URL: redis://redis:6379
+      API_PORT: '4000'
+      WEB_URL: http://localhost:3100
+      CORS_ORIGINS: http://localhost:3100
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-only-access-secret-change-me-please-0000000000000000}
+      JWT_CUSTOMER_SECRET: ${JWT_CUSTOMER_SECRET:-dev-only-customer-secret-change-me-please-000000000000}
+    ports:
+      - '4100:4000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    profiles: ['full']
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        API_URL: http://api:4000
+    container_name: tabletap-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_URL: http://api:4000
+      NEXT_PUBLIC_API_URL: http://localhost:4100
+      WEB_URL: http://localhost:3100
+    ports:
+      - '3100:3100'
+    depends_on:
+      - api
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

@@ -1,0 +1,1601 @@
+// ---------------------------------------------------------------------------
+// TableTap — Prisma schema
+//
+// Conventions
+//  * Money is NUMERIC(12,2) exposed as Prisma.Decimal. Never float.
+//  * Quantities are NUMERIC(12,3).
+//  * Every tenant-scoped table carries tenantId, and every branch-scoped table
+//    carries branchId, so isolation checks are explicit and indexable.
+//  * Historical documents (orders, bills, payments) snapshot pricing so later
+//    menu edits never rewrite financial history.
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------- enums -------------------------------------
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  DEACTIVATED
+}
+
+enum BranchStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum RoleKey {
+  OWNER
+  MANAGER
+  CASHIER
+  KITCHEN
+  WAITER
+  VIEWER
+  PLATFORM_ADMIN
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  ORDERING
+  BILL_REQUESTED
+  PAYMENT_PENDING
+  CLEANING
+}
+
+enum TableSessionStatus {
+  OPEN
+  BILL_REQUESTED
+  PAYMENT_PENDING
+  CLOSED
+  ABANDONED
+}
+
+enum QrTokenStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum MenuItemStatus {
+  ACTIVE
+  SOLD_OUT
+  UNAVAILABLE
+  ARCHIVED
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+enum OrderItemStatus {
+  PENDING
+  ACCEPTED
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+enum OrderSource {
+  CUSTOMER_QR
+  STAFF_POS
+}
+
+enum KitchenTicketStatus {
+  PENDING
+  ACCEPTED
+  PREPARING
+  READY
+  SERVED
+  REJECTED
+}
+
+enum BillStatus {
+  DRAFT
+  OPEN
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  PROMPTPAY
+  CARD
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  AWAITING_CONFIRMATION
+  PAID
+  EXPIRED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum TableRequestType {
+  CALL_WAITER
+  REQUEST_BILL
+  REQUEST_WATER
+  REQUEST_UTENSILS
+  REPORT_ISSUE
+}
+
+enum TableRequestStatus {
+  OPEN
+  ACKNOWLEDGED
+  IN_PROGRESS
+  RESOLVED
+  CANCELLED
+}
+
+enum StockMovementType {
+  RECEIVE
+  ISSUE
+  ADJUST
+  WASTE
+  TRANSFER
+  COUNT
+  SALE_DEDUCTION
+  SALE_REVERSAL
+}
+
+enum PromotionType {
+  PERCENTAGE
+  FIXED
+  COUPON
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELLED
+  EXPIRED
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  PUBLISHED
+  FAILED
+}
+
+enum NotificationType {
+  ORDER_CREATED
+  ORDER_DELAYED
+  FOOD_READY
+  WAITER_REQUESTED
+  BILL_REQUESTED
+  LOW_STOCK
+  PAYMENT_AWAITING_CONFIRMATION
+  PAYMENT_CONFIRMED
+  SHIFT_REMINDER
+  SYSTEM
+}
+
+enum ExportStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+// ------------------------------- identity ----------------------------------
+
+model User {
+  id                 String     @id @default(uuid()) @db.Uuid
+  email              String     @unique
+  passwordHash       String
+  name               String
+  phone              String?
+  status             UserStatus @default(ACTIVE)
+  platformAdmin      Boolean    @default(false)
+  emailVerifiedAt    DateTime?
+  lastLoginAt        DateTime?
+  failedLoginCount   Int        @default(0)
+  lockedUntil        DateTime?
+  mustChangePassword Boolean    @default(false)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  memberships        Membership[]
+  sessions           UserSession[]
+  passwordResets     PasswordResetToken[]
+  auditLogs          AuditLog[]
+  invitationsSent    Invitation[]          @relation("InvitationInviter")
+  ordersCreated      Order[]               @relation("OrderCreator")
+  paymentsConfirmed  Payment[]             @relation("PaymentConfirmer")
+  refundsAuthorized  Refund[]              @relation("RefundAuthorizer")
+  staffProfile       StaffProfile?
+  staffShifts        StaffShift[]
+  staffAttendance    StaffAttendance[]
+  notifications      Notification[]
+  tableRequests      TableRequest[]        @relation("RequestAssignee")
+  uploadedFiles      UploadedFile[]
+  stockMovements     StockMovement[]
+  tableQrTokens      TableQrToken[]
+}
+
+/// Server-side session record for refresh-token rotation and revocation.
+/// Only the SHA-256 hash of the refresh token is stored.
+model UserSession {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  tokenHash    String    @unique
+  familyId     String    @db.Uuid
+  userAgent    String?
+  ipAddress    String?
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  revokeReason String?
+  replacedById String?   @db.Uuid
+  lastUsedAt   DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([familyId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Tenant {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String       @unique
+  status    TenantStatus @default(ACTIVE)
+  logoUrl   String?
+  phone     String?
+  email     String?
+  address   String?
+  taxId     String?
+  timezone  String       @default("Asia/Bangkok")
+  currency  String       @default("THB")
+  language  String       @default("th")
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  memberships    Membership[]
+  roles          Role[]
+  branches       Branch[]
+  invitations    Invitation[]
+  subscription   Subscription?
+  menuCategories MenuCategory[]
+  menuItems      MenuItem[]
+  modifierGroups ModifierGroup[]
+  orders         Order[]
+  bills          Bill[]
+  payments       Payment[]
+  ingredients    Ingredient[]
+  promotions     Promotion[]
+  auditLogs      AuditLog[]
+  notifications  Notification[]
+  tableRequests  TableRequest[]
+  uploadedFiles  UploadedFile[]
+  usageRecords   UsageRecord[]
+  exportJobs     ExportJob[]
+  idempotency    IdempotencyRecord[]
+  outboxEvents   OutboxEvent[]
+  loyaltyAccounts LoyaltyAccount[]
+  documentCounters DocumentCounter[]
+  staffShifts    StaffShift[]
+  stockMovements StockMovement[]
+}
+
+model Membership {
+  id              String           @id @default(uuid()) @db.Uuid
+  tenantId        String           @db.Uuid
+  userId          String           @db.Uuid
+  roleId          String           @db.Uuid
+  status          MembershipStatus @default(ACTIVE)
+  defaultBranchId String?          @db.Uuid
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role          Role               @relation(fields: [roleId], references: [id])
+  branches      MembershipBranch[]
+  staffProfile  StaffProfile?
+
+  @@unique([tenantId, userId])
+  @@index([tenantId, status])
+  @@index([userId])
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  key         RoleKey
+  name        String
+  description String?
+  isSystem    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  permissions RolePermission[]
+  memberships Membership[]
+  invitations Invitation[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+}
+
+/// Permission catalogue. Codes are stable strings such as "menu.update".
+model Permission {
+  code        String           @id
+  description String
+  category    String
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId         String @db.Uuid
+  permissionCode String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionCode], references: [code], onDelete: Cascade)
+
+  @@id([roleId, permissionCode])
+  @@index([permissionCode])
+}
+
+model MembershipBranch {
+  membershipId String @db.Uuid
+  branchId     String @db.Uuid
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  branch     Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([membershipId, branchId])
+  @@index([branchId])
+}
+
+model Invitation {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @db.Uuid
+  email       String
+  roleId      String    @db.Uuid
+  branchIds   String[]  @db.Uuid
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  invitedById String    @db.Uuid
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role      Role   @relation(fields: [roleId], references: [id])
+  invitedBy User   @relation("InvitationInviter", fields: [invitedById], references: [id])
+
+  @@index([tenantId, email])
+  @@index([expiresAt])
+}
+
+// -------------------------------- SaaS -------------------------------------
+
+model SubscriptionPlan {
+  id           String   @id @default(uuid()) @db.Uuid
+  key          String   @unique
+  name         String
+  description  String?
+  priceMonthly Decimal  @db.Decimal(12, 2)
+  currency     String   @default("THB")
+  features     String[]
+  limits       Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                 String             @id @default(uuid()) @db.Uuid
+  tenantId           String             @unique @db.Uuid
+  planId             String             @db.Uuid
+  status             SubscriptionStatus @default(TRIAL)
+  trialEndsAt        DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@index([status])
+}
+
+model UsageRecord {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  period      DateTime @db.Date
+  branchCount Int      @default(0)
+  staffCount  Int      @default(0)
+  orderCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, period])
+}
+
+// ----------------------------- organization --------------------------------
+
+model Branch {
+  id                    String       @id @default(uuid()) @db.Uuid
+  tenantId              String       @db.Uuid
+  name                  String
+  code                  String
+  address               String?
+  phone                 String?
+  timezone              String       @default("Asia/Bangkok")
+  currency              String       @default("THB")
+  vatRate               Decimal      @default(7) @db.Decimal(5, 2)
+  vatInclusive          Boolean      @default(true)
+  serviceChargeEnabled  Boolean      @default(false)
+  serviceChargeType     String       @default("PERCENT") // PERCENT | FIXED
+  serviceChargeValue    Decimal      @default(0) @db.Decimal(12, 2)
+  promptPayId           String?
+  receiptHeader         String?
+  receiptFooter         String?
+  status                BranchStatus @default(ACTIVE)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  zones            TableZone[]
+  tables           DiningTable[]
+  menuAvailability MenuItemAvailability[]
+  kitchenStations  KitchenStation[]
+  tableSessions    TableSession[]
+  orders           Order[]
+  bills            Bill[]
+  payments         Payment[]
+  ingredients      Ingredient[]
+  stockMovements   StockMovement[]
+  stockCounts      StockCount[]
+  promotions       Promotion[]
+  auditLogs        AuditLog[]
+  notifications    Notification[]
+  tableRequests    TableRequest[]
+  membershipBranches MembershipBranch[]
+  staffShifts      StaffShift[]
+  kitchenTickets   KitchenTicket[]
+  outboxEvents     OutboxEvent[]
+  documentCounters DocumentCounter[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, status])
+}
+
+model StaffProfile {
+  id           String    @id @default(uuid()) @db.Uuid
+  membershipId String    @unique @db.Uuid
+  position     String?
+  phone        String?
+  hiredAt      DateTime?
+  userId       String    @unique @db.Uuid
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StaffShift {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @db.Uuid
+  branchId  String    @db.Uuid
+  userId    String    @db.Uuid
+  role      String?
+  startsAt  DateTime
+  endsAt    DateTime
+  createdAt DateTime  @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch   Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attendance StaffAttendance[]
+
+  @@index([branchId, startsAt])
+  @@index([userId, startsAt])
+}
+
+model StaffAttendance {
+  id         String    @id @default(uuid()) @db.Uuid
+  shiftId    String    @db.Uuid
+  userId     String    @db.Uuid
+  clockInAt  DateTime
+  clockOutAt DateTime?
+  note       String?
+  createdAt  DateTime  @default(now())
+
+  shift StaffShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([shiftId])
+}
+
+// ------------------------------ restaurant ---------------------------------
+
+model TableZone {
+  id           String   @id @default(uuid()) @db.Uuid
+  branchId     String   @db.Uuid
+  name         String
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  branch Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  tables DiningTable[]
+
+  @@unique([branchId, name])
+}
+
+model DiningTable {
+  id         String      @id @default(uuid()) @db.Uuid
+  branchId   String      @db.Uuid
+  zoneId     String?     @db.Uuid
+  number     String
+  name       String?
+  capacity   Int         @default(4)
+  posX       Decimal     @default(0) @db.Decimal(8, 2)
+  posY       Decimal     @default(0) @db.Decimal(8, 2)
+  width      Decimal     @default(120) @db.Decimal(8, 2)
+  height     Decimal     @default(80) @db.Decimal(8, 2)
+  status     TableStatus @default(AVAILABLE)
+  archivedAt DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  branch         Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  zone           TableZone?      @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  qrTokens       TableQrToken[]
+  sessions       TableSession[]
+  orders         Order[]
+  tableRequests  TableRequest[]
+
+  @@unique([branchId, number])
+  @@index([branchId, status])
+}
+
+model TableQrToken {
+  id          String        @id @default(uuid()) @db.Uuid
+  tableId     String        @db.Uuid
+  tokenHash   String        @unique
+  /// AES-256-GCM ciphertext of the raw token, so staff can re-download an
+  /// existing label without invalidating it. Raw tokens are never logged.
+  tokenCiphertext String
+  tokenPrefix String
+  status      QrTokenStatus @default(ACTIVE)
+  createdById String?       @db.Uuid
+  rotatedAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime      @default(now())
+
+  table     DiningTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  createdBy User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([tableId, status])
+}
+
+model TableSession {
+  id         String             @id @default(uuid()) @db.Uuid
+  tenantId   String             @db.Uuid
+  branchId   String             @db.Uuid
+  tableId    String             @db.Uuid
+  status     TableSessionStatus @default(OPEN)
+  guestCount Int                @default(0)
+  openedById String?            @db.Uuid
+  closedById String?            @db.Uuid
+  openedAt   DateTime           @default(now())
+  closedAt   DateTime?
+  note       String?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  branch          Branch           @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  table           DiningTable      @relation(fields: [tableId], references: [id], onDelete: Restrict)
+  customerSessions CustomerSession[]
+  orders          Order[]
+  bills           Bill[]
+  tableRequests   TableRequest[]
+
+  @@index([tenantId, branchId, status])
+  @@index([tableId, status])
+}
+
+model CustomerSession {
+  id             String    @id @default(uuid()) @db.Uuid
+  tableSessionId String    @db.Uuid
+  tokenHash      String    @unique
+  guestLabel     String?
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime
+  revokedAt      DateTime?
+
+  tableSession TableSession @relation(fields: [tableSessionId], references: [id], onDelete: Cascade)
+  orders       Order[]
+
+  @@index([tableSessionId])
+}
+
+// --------------------------------- menu ------------------------------------
+
+model MenuCategory {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  name         String
+  nameEn       String?
+  slug         String
+  description  String?
+  imageUrl     String?
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  MenuItem[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, isActive, displayOrder])
+}
+
+model MenuItem {
+  id            String         @id @default(uuid()) @db.Uuid
+  tenantId      String         @db.Uuid
+  categoryId    String         @db.Uuid
+  name          String
+  nameEn        String?
+  slug          String
+  description   String?
+  descriptionEn String?
+  imageUrl      String?
+  sku           String?
+  basePrice     Decimal        @db.Decimal(12, 2)
+  costEstimate  Decimal        @default(0) @db.Decimal(12, 2)
+  prepMinutes   Int            @default(10)
+  status        MenuItemStatus @default(ACTIVE)
+  isFeatured    Boolean        @default(false)
+  isPopular     Boolean        @default(false)
+  displayOrder  Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category     MenuCategory           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  variants     MenuItemVariant[]
+  modifierGroups MenuItemModifierGroup[]
+  availability MenuItemAvailability[]
+  allergens    MenuItemAllergen[]
+  stations     MenuItemStation[]
+  recipes      Recipe[]
+  orderItems   OrderItem[]
+  priceHistory MenuPriceHistory[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, categoryId, status])
+  @@index([tenantId, isFeatured])
+}
+
+model MenuItemVariant {
+  id          String   @id @default(uuid()) @db.Uuid
+  menuItemId  String   @db.Uuid
+  name        String
+  nameEn      String?
+  sku         String?
+  priceDelta  Decimal  @default(0) @db.Decimal(12, 2)
+  isDefault   Boolean  @default(false)
+  isAvailable Boolean  @default(true)
+  displayOrder Int     @default(0)
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@index([menuItemId])
+}
+
+model ModifierGroup {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  name         String
+  nameEn       String?
+  minSelect    Int      @default(0)
+  maxSelect    Int      @default(1)
+  required     Boolean  @default(false)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  tenant Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  options ModifierOption[]
+  items  MenuItemModifierGroup[]
+
+  @@index([tenantId])
+}
+
+model ModifierOption {
+  id              String   @id @default(uuid()) @db.Uuid
+  modifierGroupId String   @db.Uuid
+  name            String
+  nameEn          String?
+  priceDelta      Decimal  @default(0) @db.Decimal(12, 2)
+  isAvailable     Boolean  @default(true)
+  displayOrder    Int      @default(0)
+
+  group           ModifierGroup      @relation(fields: [modifierGroupId], references: [id], onDelete: Cascade)
+  orderItemModifiers OrderItemModifier[]
+
+  @@index([modifierGroupId])
+}
+
+model MenuItemModifierGroup {
+  menuItemId      String @db.Uuid
+  modifierGroupId String @db.Uuid
+  displayOrder    Int    @default(0)
+  menuItem MenuItem      @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  group    ModifierGroup @relation(fields: [modifierGroupId], references: [id], onDelete: Cascade)
+
+  @@id([menuItemId, modifierGroupId])
+}
+
+model MenuItemAvailability {
+  id          String    @id @default(uuid()) @db.Uuid
+  menuItemId  String    @db.Uuid
+  branchId    String    @db.Uuid
+  isAvailable Boolean   @default(true)
+  soldOutUntil DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  branch   Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, branchId])
+  @@index([branchId, isAvailable])
+}
+
+model Allergen {
+  id   String @id
+  code String @unique
+  name String
+  nameTh String?
+
+  items MenuItemAllergen[]
+}
+
+model MenuItemAllergen {
+  menuItemId String @db.Uuid
+  allergenId String
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  allergen Allergen @relation(fields: [allergenId], references: [id], onDelete: Cascade)
+
+  @@id([menuItemId, allergenId])
+}
+
+model MenuPriceHistory {
+  id         String   @id @default(uuid()) @db.Uuid
+  menuItemId String   @db.Uuid
+  oldPrice   Decimal  @db.Decimal(12, 2)
+  newPrice   Decimal  @db.Decimal(12, 2)
+  changedById String? @db.Uuid
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@index([menuItemId, createdAt])
+}
+
+// -------------------------------- orders -----------------------------------
+
+model Order {
+  id                String      @id @default(uuid()) @db.Uuid
+  tenantId          String      @db.Uuid
+  branchId          String      @db.Uuid
+  tableId           String      @db.Uuid
+  tableSessionId    String      @db.Uuid
+  customerSessionId String?     @db.Uuid
+  number            String
+  status            OrderStatus @default(PENDING)
+  source            OrderSource
+  subtotal          Decimal     @db.Decimal(12, 2)
+  discountTotal     Decimal     @default(0) @db.Decimal(12, 2)
+  serviceCharge     Decimal     @default(0) @db.Decimal(12, 2)
+  taxTotal          Decimal     @default(0) @db.Decimal(12, 2)
+  total             Decimal     @db.Decimal(12, 2)
+  currency          String      @default("THB")
+  note              String?
+  idempotencyKey    String?
+  createdById       String?     @db.Uuid
+  acceptedById      String?     @db.Uuid
+  acceptedAt        DateTime?
+  readyAt           DateTime?
+  servedAt          DateTime?
+  cancelledAt       DateTime?
+  cancelReason      String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  branch          Branch          @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  table           DiningTable     @relation(fields: [tableId], references: [id], onDelete: Restrict)
+  tableSession    TableSession    @relation(fields: [tableSessionId], references: [id], onDelete: Restrict)
+  customerSession CustomerSession? @relation(fields: [customerSessionId], references: [id], onDelete: SetNull)
+  createdBy       User?           @relation("OrderCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  items           OrderItem[]
+  events          OrderEvent[]
+  tickets         KitchenTicket[]
+  billOrders      BillOrder[]
+  cancellation    OrderCancellation?
+  promotions      PromotionRedemption[]
+
+  @@unique([tenantId, number])
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, branchId, createdAt])
+  @@index([branchId, status, createdAt])
+  @@index([tableSessionId])
+}
+
+model OrderItem {
+  id               String          @id @default(uuid()) @db.Uuid
+  orderId          String          @db.Uuid
+  menuItemId       String          @db.Uuid
+  stationId        String?         @db.Uuid
+  nameSnapshot     String
+  skuSnapshot      String?
+  variantName      String?
+  quantity         Int
+  unitPrice        Decimal         @db.Decimal(12, 2)
+  modifiersTotal   Decimal         @default(0) @db.Decimal(12, 2)
+  lineSubtotal     Decimal         @db.Decimal(12, 2)
+  lineDiscount     Decimal         @default(0) @db.Decimal(12, 2)
+  lineTax          Decimal         @default(0) @db.Decimal(12, 2)
+  lineTotal        Decimal         @db.Decimal(12, 2)
+  status           OrderItemStatus @default(PENDING)
+  note             String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  order      Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem            @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+  station    KitchenStation?     @relation(fields: [stationId], references: [id], onDelete: SetNull)
+  modifiers  OrderItemModifier[]
+  ticketItem KitchenTicketItem?
+
+  @@index([orderId])
+  @@index([stationId, status])
+}
+
+model OrderItemModifier {
+  id              String  @id @default(uuid()) @db.Uuid
+  orderItemId     String  @db.Uuid
+  modifierOptionId String? @db.Uuid
+  groupName       String
+  name            String
+  priceDelta      Decimal @db.Decimal(12, 2)
+  quantity        Int     @default(1)
+
+  orderItem      OrderItem       @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  modifierOption ModifierOption? @relation(fields: [modifierOptionId], references: [id], onDelete: SetNull)
+
+  @@index([orderItemId])
+}
+
+model OrderEvent {
+  id          String      @id @default(uuid()) @db.Uuid
+  orderId     String      @db.Uuid
+  actorUserId String?     @db.Uuid
+  actorType   String      @default("STAFF") // STAFF | CUSTOMER | SYSTEM
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  reason      String?
+  metadata    Json?
+  createdAt   DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+}
+
+model OrderCancellation {
+  id              String   @id @default(uuid()) @db.Uuid
+  orderId         String   @unique @db.Uuid
+  reason          String
+  cancelledById   String?  @db.Uuid
+  refundRequired  Boolean  @default(false)
+  inventoryReversed Boolean @default(false)
+  createdAt       DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+// -------------------------------- kitchen ----------------------------------
+
+model KitchenStation {
+  id           String   @id @default(uuid()) @db.Uuid
+  branchId     String   @db.Uuid
+  code         String
+  name         String
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  branch Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  items  MenuItemStation[]
+  tickets KitchenTicket[]
+  orderItems OrderItem[]
+
+  @@unique([branchId, code])
+}
+
+model MenuItemStation {
+  menuItemId String @db.Uuid
+  stationId  String @db.Uuid
+  menuItem MenuItem       @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  station  KitchenStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@id([menuItemId, stationId])
+  @@index([stationId])
+}
+
+model KitchenTicket {
+  id          String              @id @default(uuid()) @db.Uuid
+  tenantId    String              @db.Uuid
+  branchId    String              @db.Uuid
+  stationId   String              @db.Uuid
+  orderId     String              @db.Uuid
+  number      String
+  status      KitchenTicketStatus @default(PENDING)
+  priority    Int                 @default(0)
+  acceptedById String?            @db.Uuid
+  acceptedAt  DateTime?
+  readyAt     DateTime?
+  servedAt    DateTime?
+  rejectedAt  DateTime?
+  rejectReason String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  branch  Branch        @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  station KitchenStation @relation(fields: [stationId], references: [id], onDelete: Restrict)
+  order   Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  items   KitchenTicketItem[]
+  events  KitchenEvent[]
+
+  @@unique([orderId, stationId])
+  @@index([branchId, stationId, status, createdAt])
+}
+
+model KitchenTicketItem {
+  id          String          @id @default(uuid()) @db.Uuid
+  ticketId    String          @db.Uuid
+  orderItemId String          @unique @db.Uuid
+  status      OrderItemStatus @default(PENDING)
+  readyAt     DateTime?
+
+  ticket    KitchenTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  orderItem OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+}
+
+model KitchenEvent {
+  id          String              @id @default(uuid()) @db.Uuid
+  ticketId    String              @db.Uuid
+  actorUserId String?             @db.Uuid
+  fromStatus  KitchenTicketStatus?
+  toStatus    KitchenTicketStatus
+  reason      String?
+  createdAt   DateTime            @default(now())
+
+  ticket KitchenTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+}
+
+// -------------------------------- billing -----------------------------------
+
+model Bill {
+  id                 String     @id @default(uuid()) @db.Uuid
+  tenantId           String     @db.Uuid
+  branchId           String     @db.Uuid
+  tableSessionId     String     @db.Uuid
+  number             String
+  status             BillStatus @default(OPEN)
+  subtotal           Decimal    @db.Decimal(12, 2)
+  discountTotal      Decimal    @default(0) @db.Decimal(12, 2)
+  serviceCharge      Decimal    @default(0) @db.Decimal(12, 2)
+  taxTotal           Decimal    @default(0) @db.Decimal(12, 2)
+  total              Decimal    @db.Decimal(12, 2)
+  paidTotal          Decimal    @default(0) @db.Decimal(12, 2)
+  currency           String     @default("THB")
+  taxRate            Decimal    @db.Decimal(5, 2)
+  taxInclusive       Boolean
+  serviceChargeType  String     @default("PERCENT")
+  serviceChargeValue Decimal    @default(0) @db.Decimal(12, 2)
+  note               String?
+  createdById        String?    @db.Uuid
+  openedAt           DateTime   @default(now())
+  paidAt             DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  branch       Branch        @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  tableSession TableSession  @relation(fields: [tableSessionId], references: [id], onDelete: Restrict)
+  items        BillItem[]
+  orders       BillOrder[]
+  splits       BillSplit[]
+  payments     Payment[]
+  receipt      Receipt?
+
+  @@unique([tenantId, number])
+  @@index([tenantId, branchId, status, createdAt])
+  @@index([tableSessionId])
+}
+
+model BillItem {
+  id            String  @id @default(uuid()) @db.Uuid
+  billId        String  @db.Uuid
+  orderItemId   String  @unique @db.Uuid
+  nameSnapshot  String
+  variantName   String?
+  quantity      Int
+  unitPrice     Decimal @db.Decimal(12, 2)
+  modifiersTotal Decimal @default(0) @db.Decimal(12, 2)
+  lineSubtotal  Decimal @db.Decimal(12, 2)
+  lineDiscount  Decimal @default(0) @db.Decimal(12, 2)
+  lineTax       Decimal @default(0) @db.Decimal(12, 2)
+  lineTotal     Decimal @db.Decimal(12, 2)
+
+  bill   Bill      @relation(fields: [billId], references: [id], onDelete: Cascade)
+  splits BillSplitItem[]
+
+  @@index([billId])
+}
+
+model BillOrder {
+  billId  String @db.Uuid
+  orderId String @unique @db.Uuid
+  bill  Bill  @relation(fields: [billId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@id([billId, orderId])
+  @@index([billId])
+}
+
+model BillSplit {
+  id        String    @id @default(uuid()) @db.Uuid
+  billId    String    @db.Uuid
+  label     String
+  amount    Decimal   @db.Decimal(12, 2)
+  status    String    @default("OPEN") // OPEN | PAID | CANCELLED
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  bill  Bill            @relation(fields: [billId], references: [id], onDelete: Cascade)
+  items BillSplitItem[]
+
+  @@index([billId])
+}
+
+model BillSplitItem {
+  splitId   String @db.Uuid
+  billItemId String @db.Uuid
+  quantity  Int
+  amount    Decimal @db.Decimal(12, 2)
+  split    BillSplit @relation(fields: [splitId], references: [id], onDelete: Cascade)
+  billItem BillItem  @relation(fields: [billItemId], references: [id], onDelete: Cascade)
+
+  @@id([splitId, billItemId])
+}
+
+model Receipt {
+  id          String   @id @default(uuid()) @db.Uuid
+  billId      String   @unique @db.Uuid
+  number      String   @unique
+  payload     Json
+  issuedAt    DateTime @default(now())
+  createdById String?  @db.Uuid
+
+  bill Bill @relation(fields: [billId], references: [id], onDelete: Cascade)
+}
+
+// -------------------------------- payments ---------------------------------
+
+model Payment {
+  id                 String        @id @default(uuid()) @db.Uuid
+  tenantId           String        @db.Uuid
+  branchId           String        @db.Uuid
+  billId             String        @db.Uuid
+  method             PaymentMethod
+  status             PaymentStatus @default(PENDING)
+  amount             Decimal       @db.Decimal(12, 2)
+  amountPaid         Decimal       @default(0) @db.Decimal(12, 2)
+  currency           String        @default("THB")
+  reference          String        @unique
+  provider           String?
+  providerRef        String?
+  promptPayPayload   String?
+  expiresAt          DateTime?
+  confirmedById      String?       @db.Uuid
+  confirmedAt        DateTime?
+  failureReason      String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  branch      Branch       @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  bill        Bill         @relation(fields: [billId], references: [id], onDelete: Restrict)
+  confirmedBy User?        @relation("PaymentConfirmer", fields: [confirmedById], references: [id], onDelete: SetNull)
+  attempts    PaymentAttempt[]
+  proofs      PaymentProof[]
+  refunds     Refund[]
+
+  @@index([billId, status])
+  @@index([tenantId, status, createdAt])
+  @@index([expiresAt])
+}
+
+model PaymentAttempt {
+  id        String   @id @default(uuid()) @db.Uuid
+  paymentId String   @db.Uuid
+  action    String
+  actorId   String?  @db.Uuid
+  result    String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId, createdAt])
+}
+
+model PaymentProof {
+  id           String   @id @default(uuid()) @db.Uuid
+  paymentId    String   @db.Uuid
+  fileId       String   @db.Uuid
+  uploadedById String?  @db.Uuid
+  createdAt    DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+}
+
+model Refund {
+  id             String   @id @default(uuid()) @db.Uuid
+  paymentId      String   @db.Uuid
+  amount         Decimal  @db.Decimal(12, 2)
+  reason         String
+  authorizedById String   @db.Uuid
+  reference      String   @unique
+  createdAt      DateTime @default(now())
+
+  payment      Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  authorizedBy User    @relation("RefundAuthorizer", fields: [authorizedById], references: [id], onDelete: Restrict)
+
+  @@index([paymentId])
+}
+
+/// Raw provider callbacks, stored before processing so retries can be
+/// deduplicated. Unused until a real PSP is configured.
+model PaymentProviderEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  provider    String
+  eventId     String
+  payload     Json
+  processedAt DateTime?
+  error       String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([provider, eventId])
+  @@index([processedAt])
+}
+
+// -------------------------------- inventory --------------------------------
+
+model Ingredient {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  branchId     String   @db.Uuid
+  name         String
+  sku          String?
+  category     String?
+  unit         String   @default("g") // g | kg | ml | l | pcs | pack
+  costPerUnit  Decimal  @default(0) @db.Decimal(12, 4)
+  minStock     Decimal  @default(0) @db.Decimal(12, 3)
+  currentStock Decimal  @default(0) @db.Decimal(12, 3)
+  storageLocation String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch    Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  movements StockMovement[]
+  recipeItems RecipeItem[]
+  stockCountItems StockCountItem[]
+
+  @@unique([branchId, sku])
+  @@index([tenantId, branchId, isActive])
+  @@index([branchId, currentStock])
+}
+
+model Recipe {
+  id             String   @id @default(uuid()) @db.Uuid
+  menuItemId     String   @db.Uuid
+  currentVersionId String? @unique @db.Uuid
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  menuItem MenuItem        @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  versions RecipeVersion[]
+  currentVersion RecipeVersion? @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+
+  @@unique([menuItemId])
+}
+
+model RecipeVersion {
+  id          String   @id @default(uuid()) @db.Uuid
+  recipeId    String   @db.Uuid
+  version     Int
+  notes       String?
+  createdById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+
+  recipe Recipe       @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  items  RecipeItem[]
+  currentFor Recipe?  @relation("CurrentVersion")
+
+  @@unique([recipeId, version])
+}
+
+model RecipeItem {
+  id           String  @id @default(uuid()) @db.Uuid
+  versionId    String  @db.Uuid
+  ingredientId String  @db.Uuid
+  quantity     Decimal @db.Decimal(12, 3)
+  unit         String
+
+  version    RecipeVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  ingredient Ingredient    @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+
+  @@unique([versionId, ingredientId])
+}
+
+model StockMovement {
+  id             String            @id @default(uuid()) @db.Uuid
+  tenantId       String            @db.Uuid
+  branchId       String            @db.Uuid
+  ingredientId   String            @db.Uuid
+  type           StockMovementType
+  quantity       Decimal           @db.Decimal(12, 3)
+  unit           String
+  balanceAfter   Decimal           @db.Decimal(12, 3)
+  referenceType  String?
+  referenceId    String?
+  idempotencyKey String?           @unique
+  actorId        String?           @db.Uuid
+  reason         String?
+  createdAt      DateTime          @default(now())
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  branch     Branch     @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+  actor      User?      @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([branchId, createdAt])
+  @@index([ingredientId, createdAt])
+  @@index([referenceType, referenceId])
+}
+
+model StockCount {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  branchId    String   @db.Uuid
+  status      String   @default("DRAFT")
+  note        String?
+  createdById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+
+  branch Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  items  StockCountItem[]
+}
+
+model StockCountItem {
+  id           String  @id @default(uuid()) @db.Uuid
+  stockCountId String  @db.Uuid
+  ingredientId String  @db.Uuid
+  countedQty   Decimal @db.Decimal(12, 3)
+  systemQty    Decimal @db.Decimal(12, 3)
+
+  stockCount StockCount @relation(fields: [stockCountId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+
+  @@unique([stockCountId, ingredientId])
+}
+
+// ------------------------------- promotions ---------------------------------
+
+model Promotion {
+  id              String        @id @default(uuid()) @db.Uuid
+  tenantId        String        @db.Uuid
+  branchId        String?       @db.Uuid
+  name            String
+  code            String?
+  type            PromotionType
+  value           Decimal       @db.Decimal(12, 2)
+  minOrderAmount  Decimal       @default(0) @db.Decimal(12, 2)
+  maxDiscount     Decimal?      @db.Decimal(12, 2)
+  maxRedemptions  Int?
+  redemptionCount Int           @default(0)
+  startsAt        DateTime?
+  endsAt          DateTime?
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  tenant      Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch      Branch?               @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  redemptions PromotionRedemption[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+}
+
+model PromotionRedemption {
+  id          String   @id @default(uuid()) @db.Uuid
+  promotionId String   @db.Uuid
+  orderId     String   @db.Uuid
+  amount      Decimal  @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Restrict)
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([promotionId, orderId])
+  @@index([orderId])
+}
+
+model LoyaltyAccount {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  phone     String
+  name      String?
+  points    Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  transactions LoyaltyTransaction[]
+
+  @@unique([tenantId, phone])
+}
+
+model LoyaltyTransaction {
+  id        String   @id @default(uuid()) @db.Uuid
+  accountId String   @db.Uuid
+  points    Int
+  type      String // EARN | REDEEM | ADJUST | EXPIRE
+  reference String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  account LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, createdAt])
+}
+
+// --------------------------- requests / notices -----------------------------
+
+model TableRequest {
+  id              String             @id @default(uuid()) @db.Uuid
+  tenantId        String             @db.Uuid
+  branchId        String             @db.Uuid
+  tableId         String             @db.Uuid
+  tableSessionId  String             @db.Uuid
+  type            TableRequestType
+  status          TableRequestStatus @default(OPEN)
+  note            String?
+  assignedToId    String?            @db.Uuid
+  acknowledgedAt  DateTime?
+  resolvedAt      DateTime?
+  resolutionNote  String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  table        DiningTable  @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  tableSession TableSession @relation(fields: [tableSessionId], references: [id], onDelete: Cascade)
+  assignedTo   User?        @relation("RequestAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([branchId, status, createdAt])
+  @@index([tableSessionId, status])
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  tenantId  String           @db.Uuid
+  branchId  String?          @db.Uuid
+  userId    String?          @db.Uuid
+  type      NotificationType
+  title     String
+  body      String?
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@index([tenantId, branchId, createdAt])
+}
+
+// --------------------------------- platform ---------------------------------
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String?  @db.Uuid
+  branchId     String?  @db.Uuid
+  actorId      String?  @db.Uuid
+  actorType    String   @default("USER") // USER | CUSTOMER | SYSTEM | PLATFORM
+  action       String
+  resourceType String
+  resourceId   String?
+  before       Json?
+  after        Json?
+  reason       String?
+  requestId    String?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  actor  User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, resourceType, resourceId])
+  @@index([actorId, createdAt])
+}
+
+model UploadedFile {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  key          String   @unique
+  bucket       String
+  mimeType     String
+  sizeBytes    Int
+  originalName String
+  uploadedById String?  @db.Uuid
+  createdAt    DateTime @default(now())
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uploadedBy User?  @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+}
+
+/// Server-side idempotency ledger for mutating endpoints. Scoped per tenant.
+model IdempotencyRecord {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @db.Uuid
+  scope          String
+  key            String
+  requestHash    String
+  responseCode   Int
+  responseBody   Json
+  createdAt      DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, scope, key])
+  @@index([createdAt])
+}
+
+model OutboxEvent {
+  id            String       @id @default(uuid()) @db.Uuid
+  tenantId      String?      @db.Uuid
+  branchId      String?      @db.Uuid
+  eventType     String
+  aggregateType String
+  aggregateId   String
+  sequence      BigInt
+  payload       Json
+  payloadVersion Int         @default(1)
+  status        OutboxStatus @default(PENDING)
+  attempts      Int          @default(0)
+  availableAt   DateTime     @default(now())
+  publishedAt   DateTime?
+  lastError     String?
+  createdAt     DateTime     @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@index([status, availableAt])
+  @@index([tenantId, sequence])
+}
+
+model DocumentCounter {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  branchId String? @db.Uuid
+  type     String
+  period   String
+  value    Int    @default(0)
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, branchId, type, period])
+}
+
+model ExportJob {
+  id          String       @id @default(uuid()) @db.Uuid
+  tenantId    String       @db.Uuid
+  type        String
+  params      Json
+  status      ExportStatus @default(QUEUED)
+  fileId      String?      @db.Uuid
+  error       String?
+  createdAt   DateTime     @default(now())
+  completedAt DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+}

@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tabletap
+          POSTGRES_PASSWORD: tabletap
+          POSTGRES_DB: tabletap
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U tabletap -d tabletap"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://tabletap:tabletap@localhost:5432/tabletap?schema=public
+      JWT_ACCESS_SECRET: ci-access-secret-ci-access-secret-ci-access-secret
+      JWT_CUSTOMER_SECRET: ci-customer-secret-ci-customer-secret-ci-customer
+      NODE_ENV: test
+      SUBSCRIPTION_MODE: development
+      SEED_DEMO_DATA: 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @tabletap/shared build
+
+      - name: Generate Prisma client
+        run: pnpm --filter @tabletap/api exec prisma generate
+
+      - name: Apply migrations
+        run: pnpm --filter @tabletap/api exec prisma migrate deploy
+
+      - name: Typecheck API
+        run: pnpm --filter @tabletap/api exec tsc --noEmit
+
+      - name: Unit tests
+        run: pnpm --filter @tabletap/api test
+
+      - name: Build API
+        run: pnpm --filter @tabletap/api build
+
+      - name: Build web
+        run: pnpm --filter @tabletap/web build
+
+      - name: Formatting check
+        run: pnpm format:check
+
+      - name: Seed demo data
+        run: pnpm --filter @tabletap/api db:seed
+
+      - name: Start API
+        run: nohup pnpm --filter @tabletap/api start > api.log 2>&1 &
+
+      - name: Start web
+        run: nohup pnpm --filter @tabletap/web start > web.log 2>&1 &
+
+      - name: Wait for services
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:4100/api/v1/health > /dev/null && curl -sf http://localhost:3100/login > /dev/null; then
+              echo "services ready"; exit 0
+            fi
+            sleep 2
+          done
+          echo "services did not start"; exit 1
+
+      - name: API integration smoke
+        run: pnpm --filter @tabletap/api test:integration
+
+      - name: Web integration smoke
+        run: pnpm --filter @tabletap/web test:integration
