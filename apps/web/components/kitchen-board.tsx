@@ -308,8 +308,11 @@ export function KitchenBoard({
                       </h3>
                       <StatusBadge status={ticket.status} />
                     </div>
-                    <p className="mt-1 text-[11px] text-muted">
-                      {ticket.order.number} · {ticket.station.name}
+                    <p className="mt-1 flex items-center gap-1.5 text-[11px] text-muted">
+                      <span className="font-mono">{ticket.order.number}</span>
+                      <span className="rounded-full bg-paper-deep px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-ink-soft">
+                        {ticket.station.name}
+                      </span>
                     </p>
                   </div>
                   <div className="text-right">
@@ -355,7 +358,10 @@ export function KitchenBoard({
                           </p>
                         ) : null}
                       </div>
-                      {canUpdate && line.status !== 'READY' && line.status !== 'SERVED' ? (
+                      {canUpdate &&
+                      line.status !== 'READY' &&
+                      line.status !== 'SERVED' &&
+                      (ticket.status === 'ACCEPTED' || ticket.status === 'PREPARING') ? (
                         <button
                           type="button"
                           onClick={() => void markItemReady(ticket, line.id)}
@@ -364,9 +370,9 @@ export function KitchenBoard({
                         >
                           Ready
                         </button>
-                      ) : (
+                      ) : line.status === 'READY' || line.status === 'SERVED' ? (
                         <Check className="mt-1 h-3.5 w-3.5 shrink-0 text-success" />
-                      )}
+                      ) : null}
                     </li>
                   ))}
                 </ul>

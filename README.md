@@ -27,6 +27,43 @@ Guest scans QR ──► Menu & cart ──► Order (server priced, idempotent)
 
 ---
 
+## Screenshots
+
+| Staff overview                               | Floor plan                                     |
+| -------------------------------------------- | ---------------------------------------------- |
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Floor plan](docs/screenshots/floor-plan.png) |
+
+| Kitchen display                          | POS                              |
+| ---------------------------------------- | -------------------------------- |
+| ![Kitchen](docs/screenshots/kitchen.png) | ![POS](docs/screenshots/pos.png) |
+
+| Analytics                                    | Guest menu (mobile)                                   |
+| -------------------------------------------- | ----------------------------------------------------- |
+| ![Analytics](docs/screenshots/analytics.png) | ![Guest menu](docs/screenshots/guest-menu-mobile.png) |
+
+| Landing                                  | Sign in                                |
+| ---------------------------------------- | -------------------------------------- |
+| ![Landing](docs/screenshots/landing.png) | ![Sign in](docs/screenshots/login.png) |
+
+Screenshots are captured from the production build with Playwright
+(`pnpm screenshots`) against the seeded demo, not mocked up.
+
+---
+
+## Design system
+
+- **Type** — Fraunces (display) and IBM Plex Sans Thai (UI, Latin + Thai subsets), both
+  **self-hosted** in `apps/web/app/fonts` so builds never depend on a network fetch.
+- **Palette** — warm paper `#f7f3ec`, ink `#17150f`, terracotta `#b4512c`, olive, gold. No purple,
+  no gradient text, no glow.
+- **Motion** — scroll reveals via IntersectionObserver, count-up KPIs, page fade transitions,
+  pointer-following card highlights, hover lifts, bottom-sheet and dialog entrances. All motion is
+  disabled under `prefers-reduced-motion`.
+- **Components** — buttons, inputs, dialogs, tabs, tables, badges, stat cards, empty/skeleton/error
+  states, toast notifications, command-free navigation with permission-aware items.
+
+---
+
 ## What is implemented
 
 | Area                                      | Status              | Notes                                                                                                        |
@@ -144,7 +181,12 @@ pnpm --filter @tabletap/api typecheck
 pnpm --filter @tabletap/web build
 pnpm --filter @tabletap/api test:integration   # requires API + seed (50+ checks)
 pnpm --filter @tabletap/web test:integration   # requires web + seed (24 checks)
+pnpm screenshots                               # captures docs/screenshots/*
 ```
+
+> **Do not run `next build` while `next dev` is running.** Both use `apps/web/.next`; the build
+> replaces dev artifacts and the dev server then serves stale HTML whose CSS 404s. Stop dev first,
+> or use `pnpm build` then `pnpm --filter @tabletap/web start`.
 
 The integration suites assert behaviour, not just status codes: idempotent duplicate orders,
 cross-tenant rejection, CSRF rejection, duplicate payment confirmation, stock deduction, PromptPay

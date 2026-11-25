@@ -223,17 +223,68 @@ export class KitchenService {
     return { ticket: await this.ticketView(principal, ticketId), affectedItems: affected };
   }
 
+  async serveTicket(principal: StaffPrincipal, ticketId: string, actor: ActorMeta) {
+    const ticket = await this.loadTicket(principal, ticketId);
+    await this.prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<Array<{ status: KitchenTicketStatus }>>`
+        SELECT "status" FROM "KitchenTicket" WHERE "id" = ${ticketId}::uuid FOR UPDATE
+      `;
+      const current = rows[0];
+      if (!current) throw new NotFoundException({ message: 'Ticket not found', code: 'NOT_FOUND' });
+      if (!canTransition(KITCHEN_TICKET_TRANSITIONS, current.status, 'SERVED')) {
+        throw new ConflictException({
+          message: `Cannot serve a ticket in ${current.status} state`,
+          code: 'INVALID_TRANSITION',
+        });
+      }
+      const ticketItems = await tx.kitchenTicketItem.findMany({ where: { ticketId } });
+      const orderItemIds = ticketItems.map((item) => item.orderItemId);
+      await tx.kitchenTicket.update({
+        where: { id: ticketId },
+        data: { status: 'SERVED', servedAt: new Date() },
+      });
+      await tx.kitchenTicketItem.updateMany({
+        where: { ticketId },
+        data: { status: 'SERVED' },
+      });
+      await tx.orderItem.updateMany({
+        where: { id: { in: orderItemIds }, status: { not: 'CANCELLED' } },
+        data: { status: 'SERVED' },
+      });
+      await this.orders.recomputeOrderStatus(tx, ticket.orderId);
+      await tx.diningTable.update({
+        where: {
+          id: (await tx.order.findUniqueOrThrow({ where: { id: ticket.orderId }, select: { tableId: true } }))
+            .tableId,
+        },
+        data: { status: 'OCCUPIED' },
+      });
+      await this.log(tx, ticketId, principal.userId, current.status, 'SERVED', null);
+      await this.emit(tx, ticket, 'SERVED', actor);
+    });
+    return this.ticketView(principal, ticketId);
+  }
+
   async readyItem(principal: StaffPrincipal, orderItemId: string, actor: ActorMeta) {
     const item = await this.loadOrderItem(principal, orderItemId);
     await this.prisma.$transaction(async (tx) => {
-      const rows = await tx.$queryRaw<Array<{ status: string; ticketId: string | null }>>`
-        SELECT oi."status", kti."ticketId"
+      const rows = await tx.$queryRaw<
+        Array<{ status: string; ticketId: string | null; ticketStatus: string | null }>
+      >`
+        SELECT oi."status", kti."ticketId", kt."status"::text AS "ticketStatus"
         FROM "OrderItem" oi
         LEFT JOIN "KitchenTicketItem" kti ON kti."orderItemId" = oi."id"
+        LEFT JOIN "KitchenTicket" kt ON kt."id" = kti."ticketId"
         WHERE oi."id" = ${orderItemId}::uuid FOR UPDATE OF oi
       `;
       const current = rows[0];
       if (!current) throw new NotFoundException({ message: 'Order item not found', code: 'NOT_FOUND' });
+      if (current.ticketStatus === 'PENDING') {
+        throw new ConflictException({
+          message: 'Accept the ticket before marking items ready',
+          code: 'TICKET_NOT_ACCEPTED',
+        });
+      }
       if (current.status === 'READY' || current.status === 'SERVED') return;
       if (!['PENDING', 'ACCEPTED', 'PREPARING'].includes(current.status)) {
         throw new ConflictException({ message: 'Item cannot be marked ready', code: 'INVALID_TRANSITION' });
@@ -282,8 +333,11 @@ export class KitchenService {
       const current = rows[0];
       if (!current) throw new NotFoundException({ message: 'Order item not found', code: 'NOT_FOUND' });
       if (current.status === 'SERVED') return;
-      if (!['READY', 'PREPARING', 'ACCEPTED'].includes(current.status)) {
-        throw new ConflictException({ message: 'Item cannot be served yet', code: 'INVALID_TRANSITION' });
+      if (current.status !== 'READY') {
+        throw new ConflictException({
+          message: 'Only a ready item can be served',
+          code: 'ITEM_NOT_READY',
+        });
       }
       await tx.orderItem.update({ where: { id: orderItemId }, data: { status: 'SERVED' } });
       if (current.ticketId) {

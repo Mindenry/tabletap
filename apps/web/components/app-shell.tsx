@@ -27,6 +27,7 @@ import {
 import { clientApi } from '@/lib/api';
 import { cn, initials } from '@/lib/utils';
 import type { Me } from '@/lib/types';
+import { PageTransition } from './motion/page-transition';
 import { Button } from './ui/button';
 
 interface NavItem {
@@ -101,9 +102,13 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
   }
 
   const sidebar = (
-    <div className="flex h-full flex-col bg-night text-[#e8e2d6]">
-      <div className="flex items-center gap-2.5 px-5 py-5">
-        <span className="grid h-8 w-8 place-items-center rounded-md bg-brand text-white">
+    <div className="relative flex h-full flex-col overflow-hidden bg-night text-[#e8e2d6]">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-20 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,rgba(180,81,44,0.22),transparent_65%)]"
+      />
+      <div className="relative flex items-center gap-2.5 px-5 pb-4 pt-5">
+        <span className="group grid h-9 w-9 place-items-center rounded-[11px] bg-gradient-to-br from-brand to-brand-deep text-white shadow-[0_8px_20px_-10px_rgba(180,81,44,0.9)] transition-transform duration-500 hover:rotate-[-6deg]">
           <Store className="h-4 w-4" />
         </span>
         <div className="min-w-0">
@@ -155,15 +160,18 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
                       onClick={() => setMobileOpen(false)}
                       aria-current={active ? 'page' : undefined}
                       className={cn(
-                        'group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] transition-colors',
+                        'group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-all duration-300',
                         active
                           ? 'bg-white/[0.09] font-medium text-white'
-                          : 'text-[#c9c2b4] hover:bg-white/[0.05] hover:text-white',
+                          : 'text-[#c9c2b4] hover:translate-x-0.5 hover:bg-white/[0.05] hover:text-white',
                       )}
                     >
+                      {active ? (
+                        <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-full bg-brand" />
+                      ) : null}
                       <Icon
                         className={cn(
-                          'h-4 w-4',
+                          'h-4 w-4 transition-colors',
                           active ? 'text-brand' : 'text-[#8b8475] group-hover:text-[#c9c2b4]',
                         )}
                       />
@@ -210,13 +218,13 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
             <ChevronDown className="h-3.5 w-3.5 text-[#8b8475]" />
           </button>
           {userOpen ? (
-            <div className="absolute bottom-full left-0 right-0 mb-2 rounded-md border border-white/10 bg-night-soft p-1.5 shadow-pop">
+            <div className="absolute bottom-full left-0 right-0 mb-2 animate-scale-in rounded-lg border border-white/10 bg-night-soft p-1.5 shadow-pop">
               <p className="truncate px-2 py-1 text-[11px] text-[#a8a194]">{me.user.email}</p>
               <button
                 type="button"
                 onClick={signOut}
                 disabled={signingOut}
-                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12px] text-[#e8e2d6] hover:bg-white/[0.06]"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] text-[#e8e2d6] transition-colors hover:bg-white/[0.06]"
               >
                 <LogOut className="h-3.5 w-3.5" />
                 {signingOut ? 'Signing out…' : 'Sign out'}
@@ -264,7 +272,9 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
           </Link>
         </header>
 
-        <main className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
+        <main className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <PageTransition>{children}</PageTransition>
+        </main>
       </div>
     </div>
   );

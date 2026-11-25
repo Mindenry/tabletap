@@ -5,6 +5,7 @@ const API_INTERNAL = process.env.API_URL ?? 'http://localhost:4100';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  devIndicators: false,
   transpilePackages: ['@tabletap/shared'],
   async rewrites() {
     return [

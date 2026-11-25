@@ -101,3 +101,54 @@ node apps/web/scripts/web-smoke.mjs
 
 Worker/BullMQ, Redis socket adapter, uploads, promotion UI, loyalty, shifts, notification inbox,
 report exports, AI, PSP integration, k6 execution. See PROJECT_STATUS.md.
+
+## 2026-11-25 — Session 2 (UI completion)
+
+### Root cause of the missing CSS
+
+The user reported an unstyled site. Diagnosis: the dev server returned
+`/_next/static/css/app/layout.css` with **404**. Cause: `next build` had been run while `next dev`
+was live; both use `apps/web/.next`, so the production build replaced the dev artifacts while the dev
+server kept serving HTML that referenced them.
+Fix: stop dev, delete `.next`, restart. Documented in README and the local-development guide.
+
+### Typography
+
+- Vendored Fraunces (variable) and IBM Plex Sans Thai (400–700, Latin + Thai subsets) into
+  `apps/web/app/fonts` (~183 KB) and switched from `next/font/google` to `next/font/local`, after a
+  Google Fonts fetch failed once during a build.
+- Latin and Thai subsets are separate local families, composed in the `--font-sans` stack so each
+  glyph resolves to the right file.
+
+### Motion and UI system
+
+- Added `Reveal`, `NumberTicker`, `PageTransition`, `SpotlightCard`, `ScrollProgress`.
+- Rewrote the landing page with an editorial hero, ambient gradients, product mock, honest demo
+  facts, a four-step service loop, spotlight capability grid, financial-integrity panel and a dark
+  CTA.
+- Rebuilt sign-in as a split experience with click-to-fill demo accounts.
+- Refined sidebar active state, user popover, KPI cards, floor plan ordering/labels, kitchen station
+  labels, POS unbilled order list, analytics payment bars and chart ticks.
+- Guest menu: sticky glass category bar with edge fade, responsive header actions, animated dish
+  cards and sheets, mobile layout fixed.
+
+### Functional fixes found by screenshots
+
+- `NumberTicker` received a function prop from a Server Component (RSC serialization error) —
+  replaced with serializable `format` props.
+- Kitchen “Mark served” called a non-existent route — added `POST /kitchen/tickets/:id/served`.
+- Per-item “Ready” could mark items ready before the ticket was accepted — blocked in API and UI.
+- Item serve now requires `READY`.
+- Floor tables now order by zone display order; QR indicator labelled.
+- Seed now creates historical kitchen tickets so operations analytics are meaningful (501 tickets
+  measured, station timings).
+- Analytics Y-axis no longer shows misleading rounded ticks; day labels are `MM/DD`.
+- POS shows the unbilled orders for a selected session and no longer labels them “OPEN”.
+
+### Verification
+
+- `pnpm --filter @tabletap/api test` → 30/30.
+- `pnpm --filter @tabletap/web build` → pass; production server returns CSS 200 and self-hosted font
+  files 200.
+- API smoke → all pass; web smoke → 24/24.
+- Playwright captured 11 screenshots with **no console errors** at 1440×900 and 390×844.

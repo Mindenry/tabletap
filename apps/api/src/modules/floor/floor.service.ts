@@ -107,7 +107,7 @@ export class FloorService {
     await this.branches.load(principal, branchId);
     const tables = await this.prisma.diningTable.findMany({
       where: { branchId, archivedAt: null },
-      orderBy: [{ zoneId: 'asc' }, { number: 'asc' }],
+      orderBy: [{ zone: { displayOrder: 'asc' } }, { number: 'asc' }],
       include: {
         zone: true,
         sessions: {

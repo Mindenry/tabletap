@@ -252,7 +252,8 @@ export function FloorBoard({
             <span key={status} className="inline-flex items-center gap-1.5">
               <span
                 className={cn('h-2 w-2 rounded-full', {
-                  'bg-brand': status === 'OCCUPIED' || status === 'ORDERING',
+                  'bg-brand': status === 'OCCUPIED',
+                  'bg-brand-deep': status === 'ORDERING',
                   'bg-gold': status === 'BILL_REQUESTED',
                   'bg-olive': status === 'PAYMENT_PENDING',
                   'bg-success': status === 'AVAILABLE',
@@ -316,7 +317,9 @@ export function FloorBoard({
               <div className="mt-3 flex items-center justify-between text-[11px] text-muted">
                 <span>{table.status === 'CLEANING' ? 'Waiting to be reset' : 'Ready for guests'}</span>
                 {table.qr ? (
-                  <QrCode className="h-3.5 w-3.5 opacity-60" />
+                  <span className="inline-flex items-center gap-1 text-[10px] font-medium">
+                    <QrCode className="h-3 w-3" /> QR
+                  </span>
                 ) : (
                   <span className="text-danger">No QR</span>
                 )}

@@ -17,6 +17,7 @@ Thumbs.db
 .idea/
 .turbo/
 tmp/
+.screenshots/
 test-results/
 playwright-report/
 blob-report/

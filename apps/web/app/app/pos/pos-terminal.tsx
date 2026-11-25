@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { clientApi, errorMessage } from '@/lib/api';
 import { cn, elapsedLabel, formatDateTime, formatTHB } from '@/lib/utils';
-import type { BillDetail, BillRow, MenuItemRow, TableRow } from '@/lib/types';
+import type { BillDetail, BillRow, MenuItemRow, OrderRow, TableRow } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Input, Label, Select } from '@/components/ui/input';
@@ -59,6 +59,7 @@ export function PosTerminal({
     tables.find((table) => table.session?.id === initialSessionId) ?? tables[0] ?? null,
   );
   const [bill, setBill] = React.useState<BillDetail | null>(null);
+  const [sessionOrders, setSessionOrders] = React.useState<OrderRow[]>([]);
   const [loadingBill, setLoadingBill] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
 
@@ -103,6 +104,26 @@ export function PosTerminal({
     if (existingBill) void loadBill(existingBill.id);
     else setBill(null);
   }, [existingBill?.id, loadBill, existingBill]);
+
+  // When a session has no bill yet, show the orders it will be built from.
+  React.useEffect(() => {
+    const sessionId = selectedTable?.session?.id;
+    if (!sessionId || existingBill) {
+      setSessionOrders([]);
+      return;
+    }
+    let cancelled = false;
+    clientApi<OrderRow[]>(`/orders?branchId=${branchId}&tableSessionId=${sessionId}`)
+      .then((rows) => {
+        if (!cancelled) setSessionOrders(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setSessionOrders([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTable?.session?.id, existingBill, branchId]);
 
   const filteredTables = tables.filter((table) =>
     search.trim() ? table.number.toLowerCase().includes(search.trim().toLowerCase()) : true,
@@ -391,7 +412,13 @@ export function PosTerminal({
                     <p className="tabular text-[12px] font-semibold">
                       {formatTHB(table.session!.outstandingTotal)}
                     </p>
-                    <StatusBadge status={tableBill?.status ?? 'OPEN'} />
+                    {tableBill ? (
+                      <StatusBadge status={tableBill.status} />
+                    ) : (
+                      <span className="inline-flex rounded-full bg-paper-deep px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted">
+                        Unbilled
+                      </span>
+                    )}
                   </div>
                 </button>
               );
@@ -455,6 +482,26 @@ export function PosTerminal({
                 <p className="mt-3 text-[20px] font-semibold tabular">
                   {formatTHB(selectedTable.session!.outstandingTotal)}
                 </p>
+                {sessionOrders.length > 0 ? (
+                  <ul className="mt-4 divide-y divide-line rounded-lg border border-line bg-surface">
+                    {sessionOrders.map((order) => (
+                      <li key={order.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-[12px] font-medium text-ink">{order.number}</p>
+                          <p className="text-[11px] text-muted">
+                            {order.itemCount} item(s) ·{' '}
+                            {order.source === 'CUSTOMER_QR' ? 'Guest QR' : 'Staff POS'} ·{' '}
+                            {formatDateTime(order.createdAt)}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <StatusBadge status={order.status} />
+                          <span className="tabular text-[12px] font-semibold">{formatTHB(order.total)}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </div>
             ) : loadingBill || !bill ? (
               <div className="h-64 animate-pulse rounded-lg bg-paper-deep" />

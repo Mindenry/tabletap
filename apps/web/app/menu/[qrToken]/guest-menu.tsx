@@ -339,7 +339,11 @@ export function GuestMenu({
     <div className="min-h-screen bg-paper pb-28">
       <header className="relative overflow-hidden bg-night px-5 pb-8 pt-6 text-[#f6f2ea]">
         <div className="absolute inset-0 grain opacity-[0.18]" aria-hidden />
-        <div className="relative mx-auto flex w-full max-w-3xl items-start justify-between gap-4">
+        <div
+          aria-hidden
+          className="absolute -right-24 -top-28 h-[360px] w-[360px] animate-drift rounded-full bg-[radial-gradient(circle_at_center,rgba(180,81,44,0.35),transparent_62%)]"
+        />
+        <div className="relative mx-auto flex w-full max-w-3xl animate-rise flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand">
               TableTap · {restaurant.branch}
@@ -351,7 +355,7 @@ export function GuestMenu({
               Table {table.number} · {table.name ?? 'Dine in'}
             </p>
           </div>
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-row items-center gap-2 sm:flex-col sm:items-end">
             <button
               type="button"
               onClick={() => request('CALL_WAITER')}
@@ -385,51 +389,53 @@ export function GuestMenu({
 
       {view === 'menu' ? (
         <main className="mx-auto w-full max-w-3xl px-4">
-          <div className="-mt-4 rounded-lg border border-line bg-surface-raised p-3 shadow-card">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted" />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search dishes, drinks, allergies…"
-                aria-label="Search the menu"
-                className="h-10 w-full rounded-md border border-line bg-paper/60 pl-9 pr-9 text-[13px] focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"
-              />
-              {search ? (
-                <button
-                  type="button"
-                  onClick={() => setSearch('')}
-                  aria-label="Clear search"
-                  className="absolute right-2 top-2 rounded p-1 text-muted hover:bg-paper-deep"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+          <div className="sticky top-0 z-20 -mx-4 mb-2 px-4 pb-2 pt-1">
+            <div className="-mt-4 rounded-xl border border-line bg-surface-raised/95 p-3 shadow-card backdrop-blur-md">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted" />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search dishes, drinks, allergies…"
+                  aria-label="Search the menu"
+                  className="h-10 w-full rounded-md border border-line bg-paper/60 pl-9 pr-9 text-[13px] focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"
+                />
+                {search ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    aria-label="Clear search"
+                    className="absolute right-2 top-2 rounded p-1 text-muted hover:bg-paper-deep"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </div>
+              {!search ? (
+                <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin [mask-image:linear-gradient(to_right,black_88%,transparent)]">
+                  {menu.map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveCategory(category.id);
+                        document
+                          .getElementById(`cat-${category.id}`)
+                          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }}
+                      className={cn(
+                        'shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors',
+                        activeCategory === category.id
+                          ? 'bg-ink text-paper'
+                          : 'bg-paper-deep text-ink-soft hover:bg-[#e9e2d3]',
+                      )}
+                    >
+                      {category.name}
+                    </button>
+                  ))}
+                </div>
               ) : null}
             </div>
-            {!search ? (
-              <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
-                {menu.map((category) => (
-                  <button
-                    key={category.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveCategory(category.id);
-                      document
-                        .getElementById(`cat-${category.id}`)
-                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }}
-                    className={cn(
-                      'shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors',
-                      activeCategory === category.id
-                        ? 'bg-ink text-paper'
-                        : 'bg-paper-deep text-ink-soft hover:bg-[#e9e2d3]',
-                    )}
-                  >
-                    {category.name}
-                  </button>
-                ))}
-              </div>
-            ) : null}
           </div>
 
           {filteredMenu.length === 0 ? (
@@ -462,10 +468,10 @@ export function GuestMenu({
                         disabled={item.soldOut}
                         onClick={() => setDetail(item)}
                         className={cn(
-                          'group flex gap-3 rounded-lg border border-line bg-surface-raised p-3 text-left transition-all',
+                          'group flex gap-3 rounded-xl border border-line bg-surface-raised p-3 text-left transition-all duration-300',
                           item.soldOut
                             ? 'opacity-60'
-                            : 'hover:-translate-y-0.5 hover:border-line-strong hover:shadow-card',
+                            : 'hover:-translate-y-1 hover:border-line-strong hover:shadow-[var(--shadow-lift)]',
                         )}
                       >
                         <DishArt
@@ -673,10 +679,10 @@ export function GuestMenu({
           <button
             type="button"
             aria-label="Close cart"
-            className="absolute inset-0 bg-night/40 backdrop-blur-[2px]"
+            className="absolute inset-0 animate-fade bg-night/40 backdrop-blur-[2px]"
             onClick={() => setCartOpen(false)}
           />
-          <div className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-2xl border-t border-line bg-surface-raised p-5 scrollbar-thin">
+          <div className="absolute inset-x-0 bottom-0 max-h-[88vh] animate-slide-up overflow-y-auto rounded-t-2xl border-t border-line bg-surface-raised p-5 scrollbar-thin">
             <div className="mx-auto w-full max-w-2xl">
               <div className="flex items-center justify-between">
                 <h2 className="text-[18px] font-semibold tracking-tight">Your order</h2>
@@ -891,7 +897,7 @@ function ItemSheet({
         className="absolute inset-0 bg-night/45 backdrop-blur-[2px]"
         onClick={onClose}
       />
-      <div className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-line bg-surface-raised scrollbar-thin sm:rounded-2xl">
+      <div className="relative max-h-[92vh] w-full max-w-lg animate-slide-up overflow-y-auto rounded-t-2xl border border-line bg-surface-raised scrollbar-thin sm:animate-scale-in sm:rounded-2xl">
         <div className="relative">
           <DishArt item={{ name: item.name }} className="h-32 w-full" />
           <button

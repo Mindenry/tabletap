@@ -1,0 +1,124 @@
+import { chromium } from 'playwright';
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+const WEB = process.env.WEB_URL ?? 'http://localhost:3100';
+const OUT = join(process.cwd(), '.screenshots');
+mkdirSync(OUT, { recursive: true });
+
+const desktop = { width: 1440, height: 900 };
+const mobile = { width: 390, height: 844 };
+
+const browser = await chromium.launch();
+const context = await browser.newContext({ viewport: desktop, deviceScaleFactor: 1 });
+const page = await context.newPage();
+
+const errors = [];
+page.on('console', (message) => {
+  if (message.type() === 'error') errors.push(message.text());
+});
+page.on('pageerror', (error) => errors.push(String(error)));
+
+async function settle() {
+  await page.waitForLoadState('networkidle').catch(() => undefined);
+  await page.evaluate(() => document.fonts.ready).catch(() => undefined);
+  await page.waitForTimeout(500);
+}
+
+/** Scroll through the document so IntersectionObserver reveals every section. */
+async function revealAll() {
+  await page.evaluate(async () => {
+    const step = Math.max(320, Math.floor(window.innerHeight * 0.7));
+    for (let y = 0; y < document.body.scrollHeight; y += step) {
+      window.scrollTo(0, y);
+      await new Promise((resolve) => setTimeout(resolve, 120));
+    }
+    window.scrollTo(0, 0);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  });
+}
+
+async function shot(name, { full = false } = {}) {
+  await settle();
+  await revealAll();
+  await page.screenshot({ path: join(OUT, `${name}.png`), fullPage: full });
+  console.log(`captured ${name}`);
+}
+
+async function goto(path) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await page.goto(`${WEB}${path}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      return;
+    } catch {
+      await page.waitForTimeout(1200);
+    }
+  }
+  throw new Error(`Could not navigate to ${path}`);
+}
+
+await goto('/');
+await shot('01-landing', { full: true });
+
+await goto('/login');
+await shot('02-login');
+
+await page.fill('#email', 'owner@spicegarden.local');
+await page.fill('#password', 'TableTap!2026');
+await page.click('button[type="submit"]');
+await page.waitForURL('**/app/dashboard', { timeout: 30000 });
+await shot('03-dashboard');
+
+for (const [path, name] of [
+  ['/app/tables', '04-floor'],
+  ['/app/kitchen', '05-kitchen'],
+  ['/app/pos', '06-pos'],
+  ['/app/analytics', '07-analytics'],
+  ['/app/menu', '08-menu'],
+]) {
+  await goto(path);
+  await shot(name);
+}
+
+await goto('/menu/demo-sathorn-t03-4f8c2a91');
+await shot('09-guest-menu', { full: true });
+
+const mobileContext = await browser.newContext({
+  viewport: mobile,
+  deviceScaleFactor: 2,
+  isMobile: true,
+  hasTouch: true,
+});
+const mobilePage = await mobileContext.newPage();
+await mobilePage.goto(`${WEB}/menu/demo-sathorn-t03-4f8c2a91`, { waitUntil: 'domcontentloaded' });
+await mobilePage.waitForTimeout(1100);
+await mobilePage.screenshot({ path: join(OUT, '10-guest-mobile.png'), fullPage: false });
+console.log('captured 10-guest-mobile');
+
+await mobilePage.goto(`${WEB}/login`, { waitUntil: 'domcontentloaded' });
+await mobilePage.waitForTimeout(700);
+await mobilePage.evaluate(() => {
+  const email = document.querySelector('#email');
+  const password = document.querySelector('#password');
+  if (email && password) {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+    setter?.call(email, 'owner@spicegarden.local');
+    email.dispatchEvent(new Event('input', { bubbles: true }));
+    setter?.call(password, 'TableTap!2026');
+    password.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  document.querySelector('form')?.requestSubmit();
+});
+await mobilePage.waitForTimeout(2500);
+await mobilePage.screenshot({ path: join(OUT, '11-dashboard-mobile.png'), fullPage: false });
+console.log('captured 11-dashboard-mobile');
+
+await browser.close();
+
+if (errors.length > 0) {
+  console.log('\nConsole errors:');
+  for (const error of [...new Set(errors)].slice(0, 20)) console.log(` - ${error}`);
+  process.exitCode = 1;
+} else {
+  console.log('\nNo console errors.');
+}

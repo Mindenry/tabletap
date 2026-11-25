@@ -7,7 +7,9 @@ import type { SalesPoint } from '@/lib/types';
 export function SalesChart({ data, height = 260 }: { data: SalesPoint[]; height?: number }) {
   const points = data.map((point) => ({
     ...point,
-    label: point.bucket.slice(5).replace(' ', ' · '),
+    label: point.bucket.endsWith(' 00:00')
+      ? point.bucket.slice(5, 10).replace('-', '/')
+      : point.bucket.slice(5).replace(' ', ' · '),
     value: Number(point.gross),
   }));
 
@@ -43,7 +45,7 @@ export function SalesChart({ data, height = 260 }: { data: SalesPoint[]; height?
             axisLine={false}
             width={56}
             tickFormatter={(value: number) =>
-              value >= 1000 ? `${Math.round(value / 1000)}k` : String(value)
+              value >= 1000 ? `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k` : String(value)
             }
           />
           <Tooltip

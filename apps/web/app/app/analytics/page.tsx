@@ -77,7 +77,7 @@ export default async function AnalyticsPage({
       />
       {error ? <InlineError>{error}</InlineError> : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <StatCard
           label="Gross sales"
           value={formatTHB(overview?.grossSales ?? '0')}
@@ -119,18 +119,28 @@ export default async function AnalyticsPage({
             <CardHeader>
               <CardTitle>Payment mix</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 pt-2">
+            <CardContent className="space-y-3 pt-2">
               {sales.paymentBreakdown.length === 0 ? (
                 <p className="text-[12px] text-muted">No payments yet.</p>
               ) : (
-                sales.paymentBreakdown.map((method) => (
-                  <div key={method.method} className="flex items-center justify-between text-[12px]">
-                    <span>{method.method}</span>
-                    <span className="tabular text-muted">
-                      {method.count} · {formatTHB(method.total)}
-                    </span>
-                  </div>
-                ))
+                sales.paymentBreakdown.map((method) => {
+                  const total = sales.paymentBreakdown.reduce((acc, item) => acc + Number(item.total), 0);
+                  const percent = total > 0 ? Math.round((Number(method.total) / total) * 100) : 0;
+                  return (
+                    <div key={method.method}>
+                      <div className="mb-1 flex items-center justify-between text-[12px]">
+                        <span className="font-medium text-ink-soft">{method.method}</span>
+                        <span className="tabular text-muted">
+                          {formatTHB(method.total)} · {percent}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-paper-deep">
+                        <div className="h-full rounded-full bg-brand" style={{ width: `${percent}%` }} />
+                      </div>
+                      <p className="mt-1 text-[10px] text-muted-soft">{method.count} payment(s)</p>
+                    </div>
+                  );
+                })
               )}
             </CardContent>
           </Card>

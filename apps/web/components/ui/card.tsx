@@ -59,12 +59,17 @@ export function StatCard({
     gold: 'text-gold',
   }[tone];
   return (
-    <Card className={cn('p-5', className)}>
-      <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-muted">{label}</p>
-      <p className={cn('mt-2 text-[26px] font-semibold leading-none tracking-tight tabular', toneClass)}>
+    <Card className={cn('p-4 sm:p-5', className)}>
+      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted sm:text-[12px]">{label}</p>
+      <p
+        className={cn(
+          'mt-2 text-[22px] font-semibold leading-none tracking-tight tabular sm:text-[26px]',
+          toneClass,
+        )}
+      >
         {value}
       </p>
-      {hint ? <p className="mt-2 text-[12px] text-muted">{hint}</p> : null}
+      {hint ? <p className="mt-2 text-[11px] leading-snug text-muted sm:text-[12px]">{hint}</p> : null}
     </Card>
   );
 }

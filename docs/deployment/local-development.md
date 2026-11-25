@@ -65,6 +65,8 @@ Key variables:
 - **`prisma migrate dev` hangs** — shadow database creation can be slow/blocked. Generate SQL with
   `prisma migrate diff` and apply with `prisma migrate deploy` (the committed migration is already
   generated).
+- **CSS 404 / unstyled page** — almost always `next build` was run while `next dev` was live. Stop
+  the dev server, delete `apps/web/.next`, and start dev again (or serve the production build).
 - **Port in use** — change the mapping in `docker-compose.yml` and the matching `DATABASE_URL` /
   `REDIS_URL`.
 - **Prisma generate fails with EPERM on Windows** — stop the running API (it holds the query engine

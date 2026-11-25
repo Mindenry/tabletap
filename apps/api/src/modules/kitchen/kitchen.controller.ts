@@ -78,6 +78,12 @@ export class KitchenController {
     return this.kitchen.rejectTicket(principal, id, dto.reason, actorFrom(req));
   }
 
+  @Post('tickets/:id/served')
+  @RequireAnyPermission('kitchen.update', 'table.update')
+  servedTicket(@CurrentStaff() principal: StaffPrincipal, @Param('id') id: string, @Req() req: Request) {
+    return this.kitchen.serveTicket(principal, id, actorFrom(req));
+  }
+
   @Post('items/:id/ready')
   @RequirePermissions('kitchen.update')
   readyItem(@CurrentStaff() principal: StaffPrincipal, @Param('id') id: string, @Req() req: Request) {

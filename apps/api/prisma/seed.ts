@@ -1053,7 +1053,7 @@ async function seedSales(input: {
     serviceChargeValue: Prisma.Decimal;
   };
   tables: Array<{ id: string; number: string }>;
-  items: Array<{ id: string; name: string; nameEn: string; price: number; modifierGroups?: string[] }>;
+  items: Array<{ id: string; name: string; nameEn: string; price: number; station: string; modifierGroups?: string[] }>;
   groups: Record<string, string>;
   ownerId: string;
   cashierId: string;
@@ -1078,6 +1078,9 @@ async function seedSales(input: {
       })),
     );
   }
+
+  const stations = await prisma.kitchenStation.findMany({ where: { branchId: input.branch.id } });
+  const stationByCode = new Map(stations.map((station) => [station.code, station]));
 
   let created = 0;
 
@@ -1193,6 +1196,7 @@ async function seedSales(input: {
       });
 
       let index2 = 0;
+      const seededItems: Array<{ id: string; station: string }> = [];
       for (const line of chosen) {
         const price = pricing.lines[index2]!;
         const item = await prisma.orderItem.create({
@@ -1226,6 +1230,7 @@ async function seedSales(input: {
             },
           });
         }
+        seededItems.push({ id: item.id, station: line.item.station });
         index2 += 1;
       }
 
@@ -1240,6 +1245,46 @@ async function seedSales(input: {
       });
 
       if (cancelled) continue;
+
+      // Historical kitchen tickets so operations analytics are meaningful.
+      const byStation = new Map<string, Array<{ id: string; station: string }>>();
+      for (const seeded of seededItems) {
+        const list = byStation.get(seeded.station) ?? [];
+        list.push(seeded);
+        byStation.set(seeded.station, list);
+      }
+      for (const [stationCode, stationItems] of byStation) {
+        const station = stationByCode.get(stationCode) ?? stationByCode.get('HOT_KITCHEN');
+        if (!station) continue;
+        const ticket = await prisma.kitchenTicket.create({
+          data: {
+            tenantId: input.tenant.id,
+            branchId: input.branch.id,
+            stationId: station.id,
+            orderId: order.id,
+            number: `${number}-${station.code}`,
+            status: 'SERVED',
+            acceptedById: input.cashierId,
+            acceptedAt,
+            readyAt,
+            servedAt,
+            createdAt,
+          },
+        });
+        for (const stationItem of stationItems) {
+          await prisma.kitchenTicketItem.create({
+            data: {
+              ticketId: ticket.id,
+              orderItemId: stationItem.id,
+              status: 'SERVED',
+              readyAt,
+            },
+          });
+        }
+        await prisma.kitchenEvent.create({
+          data: { ticketId: ticket.id, actorUserId: input.cashierId, toStatus: 'SERVED', createdAt: servedAt },
+        });
+      }
 
       const billNumber = await numbers.next(prisma, {
         tenantId: input.tenant.id,

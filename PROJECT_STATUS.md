@@ -16,9 +16,23 @@ complete because a route exists.
 | Demo seed                        | `pnpm db:seed`                                  | Pass — 2 tenants, 4 branches, 60 tables, 34 items, 607 orders |
 | API integration smoke            | `pnpm --filter @tabletap/api test:integration`  | **All checks passed** (50+)                                   |
 | Web integration smoke            | `node apps/web/scripts/web-smoke.mjs`           | **All checks passed** (24)                                    |
+| Production UI                    | `next build` + `next start`, Playwright         | **11 screenshots**, no console errors, CSS 200                |
 
 The load tests in `tests/load/` are provided but **were not executed**; no performance numbers are
 claimed.
+
+## UI / UX
+
+- Custom design system on Tailwind v4 tokens: warm paper, ink, terracotta, olive, gold.
+- Self-hosted Fraunces (display) and IBM Plex Sans Thai (Latin + Thai subsets); no build-time font
+  fetch.
+- Motion: scroll reveals, count-up metrics, page transitions, spotlight cards, hover lifts,
+  bottom-sheet/dialog entrances; all disabled under `prefers-reduced-motion`.
+- Screens: landing, sign-in, dashboard, floor, guest requests, orders + detail, kitchen + full-screen,
+  POS, bills + detail, menu, inventory, staff, analytics, audit, settings, platform, guest menu.
+- Responsive at 390px and 1440px; screenshots captured from the production build.
+- Accessibility: labelled inputs, focus rings, aria-current navigation, keyboard-operable dialogs,
+  contrast-checked palette, reduced-motion support.
 
 ## Implemented and exercised end to end
 

@@ -52,7 +52,11 @@ async function main() {
   console.log(`\nTableTap web smoke → ${WEB}\n`);
 
   const home = await request('/');
-  check('landing page renders', home.status === 200 && home.text.includes('The order, the kitchen and the bill'), home.status);
+  check(
+    'landing page renders',
+    home.status === 200 && /restaurant operations platform/i.test(home.text) && /one system/i.test(home.text),
+    home.status,
+  );
   check('landing page avoids invented social proof', !/used by \d+|millions of/i.test(home.text));
 
   const loginPage = await request('/login');
