@@ -81,7 +81,7 @@ for (const [path, name] of [
 }
 
 await goto('/menu/demo-sathorn-t03-4f8c2a91');
-await shot('09-guest-menu', { full: true });
+await shot('09-guest-menu');
 
 const mobileContext = await browser.newContext({
   viewport: mobile,
@@ -94,6 +94,11 @@ await mobilePage.goto(`${WEB}/menu/demo-sathorn-t03-4f8c2a91`, { waitUntil: 'dom
 await mobilePage.waitForTimeout(1100);
 await mobilePage.screenshot({ path: join(OUT, '10-guest-mobile.png'), fullPage: false });
 console.log('captured 10-guest-mobile');
+
+await mobilePage.locator('main').getByText('ส้มตำไทย', { exact: true }).first().click();
+await mobilePage.waitForTimeout(700);
+await mobilePage.screenshot({ path: join(OUT, '13-guest-dish.png'), fullPage: false });
+console.log('captured 13-guest-dish');
 
 await mobilePage.goto(`${WEB}/login`, { waitUntil: 'domcontentloaded' });
 await mobilePage.waitForTimeout(700);
@@ -143,6 +148,7 @@ const PUBLISH = {
   '10-guest-mobile.png': 'guest-menu-mobile.png',
   '11-dashboard-mobile.png': 'dashboard-mobile.png',
   '12-platform.png': 'platform.png',
+  '13-guest-dish.png': 'guest-menu-dish.png',
 };
 for (const [source, target] of Object.entries(PUBLISH)) {
   copyFileSync(join(OUT, source), join(DOCS, target));

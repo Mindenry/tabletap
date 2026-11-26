@@ -16,7 +16,7 @@ complete because a route exists.
 | Demo seed                        | `pnpm db:seed`                                  | Pass — 2 tenants, 4 branches, 60 tables, 34 items, 607 orders |
 | API integration smoke            | `pnpm --filter @tabletap/api test:integration`  | **All checks passed** (50+)                                   |
 | Web integration smoke            | `node apps/web/scripts/web-smoke.mjs`           | **All checks passed** (24)                                    |
-| Production UI                    | `next build` + `next start`, Playwright         | **12 screenshots**, no console errors, CSS 200                |
+| Production UI                    | `next build` + `next start`, Playwright         | **13 screenshots**, no console errors, CSS 200                |
 | Realtime events                  | `pnpm --filter @tabletap/web test:realtime`     | **All checks passed** (2 sockets, staff + guest rooms)        |
 | LAN browser                      | Playwright against `192.168.1.107:3100`         | Socket **Live**, 0 console errors, QR links use LAN           |
 
@@ -36,8 +36,9 @@ the brass rail.
   build-time font fetch. Money uses tabular Plex figures, so the `฿` glyph is correct.
 - **Structure** — fixed staff sidebar, live service rail (tenant · branch · section · Bangkok clock),
   a horizontal metric band in place of KPI cards, a positioned floor plan drawn from persisted
-  `posX/posY/width/height` with zone labels and a list toggle, a typographic guest menu with
-  underlined category tabs, and a receipt-style marketing page.
+  `posX/posY/width/height` with zone labels and a list toggle, and a two-column guest ordering
+  surface (menu + sticky table rail, sheets for the order and for dish options) with underlined
+  category tabs and per-dish quantities visible in the list, and a receipt-style marketing page.
 - **Motion** — scroll reveals, count-up metrics, page transitions, dialog/sheet entrances; all
   disabled under `prefers-reduced-motion`.
 - **Screens** — landing, sign-in, dashboard, floor, guest requests, orders + detail, kitchen +

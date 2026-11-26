@@ -237,3 +237,51 @@ screen system.
 - `pnpm --filter @tabletap/api test` → 30/30.
 - API integration smoke → all checks pass; web smoke → 24/24.
 - `pnpm --filter @tabletap/web test:realtime` → staff, kitchen and guest rooms all receive events.
+
+## 2026-11-26 — Session 4 (guest ordering surface)
+
+The guest menu was rebuilt again, this time as an ordering product rather than a printed menu held
+on screen. The previous version was honest but flat: one narrow column, no add affordance in the
+list, a cart bar that only appeared after the first dish, and a desktop layout that left most of the
+screen empty.
+
+### New structure
+
+- **Two panes on desktop**: the menu column plus a sticky 340px **table rail** carrying the running
+  order, subtotal, review action, floor requests and the latest order's progress. Mobile keeps one
+  column and a solid bottom cart bar with the count and total.
+- **Fast add in the list**: a bordered `+` per dish adds directly when there are no variants or
+  modifiers, and turns into a green check for 1.2s. Dishes with options open the sheet. A quantity
+  badge on the button shows how many of that dish are already in the order.
+- **Dish sheet**: price, description, allergens, prep time, variant and modifier groups with a
+  brand-coloured “Required” until satisfied, kitchen note, and a sticky footer with the stepper and
+  the live line total.
+- **Order sheet**: line items with options and notes, a stepper per line, subtotal with the server
+  computing service charge and VAT, and one send action. Identical configurations merge into a
+  single line instead of duplicating rows.
+- **Orders view**: one ticket per order with number, time, elapsed, status stamp, a five-step
+  progress rule, per-item status, order total, bill panel and running total. Copy pluralises
+  correctly and reads “just now” under a minute.
+- **Category behaviour**: counts in the tabs, scroll-spy keeps the active tab honest, search
+  replaces the tabs and has a real empty state.
+- **Requests**: call waiter, water, utensils and bill are reachable from the rail and the footer,
+  each creating the session on first use.
+
+### Details worth noting
+
+- The session probe no longer runs on first visit: a localStorage hint records that a customer
+  session exists, so a brand-new guest does not trigger a 401 in the console. The capture script
+  went back to reporting **no console errors**.
+- Dialogs close on Escape and lock background scroll; the stepper, add and quantity controls all
+  expose labels.
+- The header no longer truncates the restaurant name on a 390px screen: controls stack under the
+  name instead of competing with it.
+
+### Verification
+
+- `tsc --noEmit` clean; `next build` pass.
+- Playwright exercised the real flow at 1440×900 and 390×844: quick add, quantity badge, order
+  sheet, dish sheet with a required option, send to kitchen, and the orders timeline.
+- `node apps/web/scripts/web-smoke.mjs` → 24/24.
+- Capture script: **13 screenshots**, no console errors, published to `docs/screenshots/`
+  (including a new dish-sheet image).

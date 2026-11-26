@@ -49,9 +49,13 @@ Guest scans QR ──► Menu & cart ──► Order (server priced, idempotent)
 | ---------------------------------------- | -------------------------------------- |
 | ![Landing](docs/screenshots/landing.png) | ![Sign in](docs/screenshots/login.png) |
 
-| Guest menu — desktop                           | Platform administration                    |
-| ---------------------------------------------- | ------------------------------------------ |
-| ![Guest menu](docs/screenshots/guest-menu.png) | ![Platform](docs/screenshots/platform.png) |
+| Guest menu — desktop                           | Guest menu — dish sheet                             |
+| ---------------------------------------------- | --------------------------------------------------- |
+| ![Guest menu](docs/screenshots/guest-menu.png) | ![Dish sheet](docs/screenshots/guest-menu-dish.png) |
+
+| Platform administration                    |
+| ------------------------------------------ |
+| ![Platform](docs/screenshots/platform.png) |
 
 Screenshots are captured from the production build with Playwright
 (`pnpm screenshots`) against the seeded demo, not mocked up. The script writes
@@ -76,7 +80,8 @@ system. Type carries the hierarchy; colour is reserved for state and money.
   overlays and modals.
 - **Layout** — a fixed staff sidebar, a live service rail (tenant · branch · section · clock), a
   horizontal metric band instead of KPI cards, a positioned floor plan drawn from persisted
-  coordinates, and a typographic guest menu with underlined category tabs.
+  coordinates, and a two-column guest ordering surface: the menu on the left, a sticky table rail
+  carrying the running order and floor requests on the right.
 - **Motion** — scroll reveals via IntersectionObserver, count-up figures, page transitions,
   dialog and sheet entrances. All motion is disabled under `prefers-reduced-motion`.
 - **Components** — buttons, inputs, dialogs, tabs, tables, status stamps, metric band,
