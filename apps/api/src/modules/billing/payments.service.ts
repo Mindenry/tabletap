@@ -241,6 +241,8 @@ export class PaymentsService {
       ...this.serialize(updated),
       promptPayPayload: payload,
       qrPngDataUrl,
+      accountName: payment.branch.promptPayName,
+      promptPayTarget: payment.branch.promptPayId,
       // Explicitly tells the client that a QR is a request, not a payment.
       requiresConfirmation: true,
     };

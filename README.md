@@ -200,6 +200,15 @@ Password for every account: `TableTap!2026`
 | `owner@baanthai.local`      | Owner (second tenant) | Proves isolation                        |
 | `platform@tabletap.local`   | Platform admin        | No restaurant data without a membership |
 
+### PromptPay demo account
+
+All three Spice Garden branches are seeded with the same real PromptPay target: national ID
+`0000000000000`, account name **Demo PromptPay**. A QR from the guest menu or the POS is a genuine
+EMVCo payload that any Thai banking app reads; scanning and confirming it moves real money to that
+account. The app cannot verify arrival on its own without a bank/PSP contract, so a payment stays
+`AWAITING_CONFIRMATION` until a cashier confirms it - or, in the demo, until **Simulate provider
+paid** posts the same signed webhook a bank would.
+
 ### Try the full flow
 
 1. Sign in as **owner**, open **Floor**, pick a free table, open a session (or scan its QR).
@@ -207,10 +216,13 @@ Password for every account: `TableTap!2026`
 3. Open **Kitchen** (or `/kitchen/display` on a tablet) - accept, start, mark ready.
 4. In the guest tab, watch the progress; call a waiter or request the bill.
 5. Staff see the request in **Guest requests**; acknowledge and resolve it.
-6. In **POS**, create the bill, split it, take a payment per share, or take PromptPay: press
-   **Generate QR**, then **Simulate provider paid** to send the signed webhook the bank would send.
-   Confirm, print the receipt, close the table.
-7. **Overview**, **Analytics** and **Day close** now include that bill.
+6. In **POS**, create the bill and split it if you like. Take a payment per share, or take PromptPay:
+   press **Generate QR** and show the real QR, then **Simulate provider paid** to send the signed
+   webhook the bank would send. Confirm, print the receipt, close the table.
+7. **Guest side:** open **Orders**, press **Pay with PromptPay**, and scan the QR with a banking app.
+   The bill becomes `PAID` on the guest screen within about five seconds of staff or the webhook
+   confirming it.
+8. **Overview**, **Analytics** and **Day close** now include that bill.
 
 The seeded demo already contains a table mid-service with a split, partially paid bill
 (one share PAID, one OPEN), an open bill request, an acknowledged waiter call, a low-stock
@@ -343,6 +355,8 @@ Full detail: [docs/architecture/financial-rules.md](./docs/architecture/financia
 
 - PromptPay QR generation is a **real EMVCo payload** validated with CRC-16/CCITT and known check
   values. It requests money; it does **not** prove money arrived.
+- The payer's banking app shows the name registered at PromptPay for that ID, not the branch's
+  `promptPayName` field. Use the same name in **Settings** so the receipt, POS and bank screen agree.
 - Without a provider, a payment stays `AWAITING_CONFIRMATION` until an authorised cashier confirms
   it. With `PAYMENT_WEBHOOK_SECRET` set, a provider can confirm it by signing a
   `POST /api/v1/public/payments/provider/:provider/webhook` event with HMAC-SHA256; the event is

@@ -558,6 +558,7 @@ async function createTenant(input: {
     serviceChargeEnabled: boolean;
     serviceChargeValue: number;
     promptPayId: string | null;
+    promptPayName?: string | null;
   }>;
   planKey: string;
 }) {
@@ -615,6 +616,7 @@ async function createTenant(input: {
         serviceChargeType: 'PERCENT',
         serviceChargeValue: new Prisma.Decimal(branchInput.serviceChargeValue),
         promptPayId: branchInput.promptPayId,
+        promptPayName: branchInput.promptPayName ?? null,
         receiptHeader: input.name,
         receiptFooter: 'Thank you / ขอบคุณที่ใช้บริการ',
         status: 'ACTIVE',
@@ -1488,7 +1490,8 @@ async function main() {
         vatInclusive: true,
         serviceChargeEnabled: true,
         serviceChargeValue: 10,
-        promptPayId: '0812345678',
+        promptPayId: '0000000000000',
+        promptPayName: 'Demo PromptPay',
       },
       {
         name: 'Ari',
@@ -1498,7 +1501,8 @@ async function main() {
         vatInclusive: true,
         serviceChargeEnabled: false,
         serviceChargeValue: 0,
-        promptPayId: '0812345679',
+        promptPayId: '0000000000000',
+        promptPayName: 'Demo PromptPay',
       },
       {
         name: 'Thonglor',
@@ -1508,7 +1512,8 @@ async function main() {
         vatInclusive: true,
         serviceChargeEnabled: true,
         serviceChargeValue: 10,
-        promptPayId: '0812345680',
+        promptPayId: '0000000000000',
+        promptPayName: 'Demo PromptPay',
       },
     ],
   });

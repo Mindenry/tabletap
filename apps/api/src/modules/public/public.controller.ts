@@ -89,6 +89,13 @@ export class PublicController {
     return this.publicService.listRequests(principal);
   }
 
+  @Post('customer-session/payments/promptpay')
+  @UseGuards(CustomerAuthGuard)
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
+  promptPayBill(@CurrentCustomer() principal: CustomerPrincipal, @Req() req: Request) {
+    return this.publicService.createPromptPayForBill(principal, actorFrom(req));
+  }
+
   @Post('customer-session/requests')
   @UseGuards(CustomerAuthGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })

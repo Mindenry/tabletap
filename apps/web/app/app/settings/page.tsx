@@ -35,6 +35,7 @@ interface BranchSettings {
   serviceChargeType: string;
   serviceChargeValue: string;
   promptPayId: string | null;
+  promptPayName: string | null;
   receiptHeader: string | null;
   receiptFooter: string | null;
   status: string;

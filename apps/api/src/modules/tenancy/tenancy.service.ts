@@ -133,6 +133,7 @@ export class TenancyService {
       serviceChargeType: branch.serviceChargeType,
       serviceChargeValue: branch.serviceChargeValue.toFixed(2),
       promptPayId: branch.promptPayId,
+      promptPayName: branch.promptPayName,
       tableCount: branch._count.tables,
       openSessions: sessionCounts.get(branch.id) ?? 0,
     }));
@@ -161,6 +162,7 @@ export class TenancyService {
         serviceChargeType: dto.serviceChargeType ?? 'PERCENT',
         serviceChargeValue: new Prisma.Decimal(dto.serviceChargeValue ?? 0),
         promptPayId: dto.promptPayId,
+        promptPayName: dto.promptPayName,
         receiptHeader: dto.receiptHeader,
         receiptFooter: dto.receiptFooter,
         status: dto.status ?? 'ACTIVE',
@@ -249,6 +251,7 @@ export class TenancyService {
           ? { serviceChargeValue: new Prisma.Decimal(dto.serviceChargeValue) }
           : {}),
         ...(dto.promptPayId !== undefined ? { promptPayId: dto.promptPayId || null } : {}),
+        ...(dto.promptPayName !== undefined ? { promptPayName: dto.promptPayName || null } : {}),
         ...(dto.receiptHeader !== undefined ? { receiptHeader: dto.receiptHeader } : {}),
         ...(dto.receiptFooter !== undefined ? { receiptFooter: dto.receiptFooter } : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),

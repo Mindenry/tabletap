@@ -13,6 +13,7 @@ import {
   Flame,
   Minus,
   Plus,
+  QrCode,
   Receipt,
   Search,
   ShoppingBag,
@@ -117,6 +118,15 @@ interface SessionState {
   requests: Array<{ id: string; type: string; status: string; createdAt: string }>;
 }
 
+interface GuestPayment {
+  paymentId: string;
+  amount: string;
+  qrDataUrl: string;
+  reference: string;
+  accountName: string | null;
+  promptPayTarget: string | null;
+}
+
 function estimateLine(line: CartLine): number {
   return (Number(line.basePrice) + Number(line.variantDelta) + Number(line.modifiersTotal)) * line.quantity;
 }
@@ -183,6 +193,8 @@ export function GuestMenu({
   const [activeCategory, setActiveCategory] = React.useState(initialMenu[0]?.id ?? '');
   const [search, setSearch] = React.useState('');
   const [promoCode, setPromoCode] = React.useState('');
+  const [pay, setPay] = React.useState<GuestPayment | null>(null);
+  const [payBusy, setPayBusy] = React.useState(false);
   const [detail, setDetail] = React.useState<PublicItem | null>(null);
   const [view, setView] = React.useState<'menu' | 'orders'>('menu');
   const [session, setSession] = React.useState<SessionState | null>(null);
@@ -271,6 +283,34 @@ export function GuestMenu({
     return () => clearTimeout(timer);
   }, [justAdded]);
 
+  React.useEffect(() => {
+    if (!pay) return;
+    const timer = setInterval(() => void refreshSession(), 5000);
+    return () => clearInterval(timer);
+  }, [pay, refreshSession]);
+
+  React.useEffect(() => {
+    if (!pay || !session?.bill) return;
+    if (session.bill.status === 'PAID' || Number(session.bill.due) <= 0) {
+      setPay(null);
+      toast.success('Payment received — thank you');
+    }
+  }, [pay, session]);
+
+  async function startPromptPay() {
+    setPayBusy(true);
+    try {
+      const qr = await clientApi<GuestPayment>('/public/customer-session/payments/promptpay', {
+        method: 'POST',
+      });
+      setPay(qr);
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setPayBusy(false);
+    }
+  }
+
   async function ensureSession(): Promise<boolean> {
     if (sessionReady) return true;
     try {
@@ -280,10 +320,9 @@ export function GuestMenu({
       return true;
     } catch (error) {
       if (error instanceof Error && 'status' in error && (error as { status?: number }).status === 409) {
-        // Session already exists for this browser/table; treat as ready.
-        setSessionReady(true);
-        markSession();
-        return true;
+        // The table is settling its bill; this browser has no usable session.
+        toast.error(errorMessage(error));
+        return false;
       }
       toast.error(errorMessage(error));
       return false;
@@ -484,7 +523,8 @@ export function GuestMenu({
                   type="button"
                   role="tab"
                   aria-selected={view === 'orders'}
-                  onClick={() => {
+                  onClick={async () => {
+                    await ensureSession();
                     setView('orders');
                     void refreshSession();
                   }}
@@ -742,6 +782,8 @@ export function GuestMenu({
               session={session}
               lastOrderId={lastOrderId}
               requestBusy={requestBusy}
+              payBusy={payBusy}
+              onPay={startPromptPay}
               onRequestBill={() => request('REQUEST_BILL')}
               onBrowse={() => setView('menu')}
             />
@@ -760,9 +802,12 @@ export function GuestMenu({
               bill={session?.bill ?? null}
               activeOrders={activeOrders}
               latestOrder={latestOrder}
+              payBusy={payBusy}
+              onPay={startPromptPay}
               onReview={() => setCartOpen(true)}
               onRequest={request}
-              onViewOrders={() => {
+              onViewOrders={async () => {
+                await ensureSession();
                 setView('orders');
                 void refreshSession();
               }}
@@ -817,6 +862,10 @@ export function GuestMenu({
           onSubmit={submitOrder}
         />
       ) : null}
+
+      {pay ? (
+        <PromptPaySheet pay={pay} onClose={() => setPay(null)} onCheck={() => void refreshSession()} />
+      ) : null}
     </div>
   );
 }
@@ -864,6 +913,8 @@ function TableRail({
   bill,
   activeOrders,
   latestOrder,
+  payBusy,
+  onPay,
   onReview,
   onRequest,
   onViewOrders,
@@ -877,6 +928,8 @@ function TableRail({
   bill: SessionState['bill'] | null;
   activeOrders: SessionOrder[];
   latestOrder?: SessionOrder;
+  payBusy: boolean;
+  onPay: () => void;
   onReview: () => void;
   onRequest: (type: 'CALL_WAITER' | 'REQUEST_WATER' | 'REQUEST_UTENSILS' | 'REQUEST_BILL') => void;
   onViewOrders: () => void;
@@ -999,9 +1052,23 @@ function TableRail({
             </div>
             <p className="money text-[16px] text-ink">{formatTHB(bill.due)}</p>
           </div>
-          <p className="mt-1.5 text-[10.5px] leading-relaxed text-gold">
-            Settle at the counter or with staff. {bill.status.replace(/_/g, ' ').toLowerCase()}.
-          </p>
+          {Number(bill.due) > 0 ? (
+            <>
+              <button
+                type="button"
+                onClick={onPay}
+                disabled={payBusy}
+                className="mt-3 inline-flex h-9 items-center gap-1.5 bg-ink px-4 text-[11.5px] font-semibold text-paper transition-colors hover:bg-ink-soft disabled:opacity-60"
+              >
+                <QrCode className="h-3.5 w-3.5" /> Pay with PromptPay
+              </button>
+              <p className="mt-1.5 text-[10.5px] leading-relaxed text-gold">
+                Scan the QR with a banking app, or settle with staff.
+              </p>
+            </>
+          ) : (
+            <p className="mt-1.5 text-[10.5px] font-medium text-success">Paid in full — thank you.</p>
+          )}
         </section>
       ) : null}
 
@@ -1038,12 +1105,16 @@ function OrdersView({
   session,
   lastOrderId,
   requestBusy,
+  payBusy,
+  onPay,
   onRequestBill,
   onBrowse,
 }: {
   session: SessionState | null;
   lastOrderId: string | null;
   requestBusy: boolean;
+  payBusy: boolean;
+  onPay: () => void;
   onRequestBill: () => void;
   onBrowse: () => void;
 }) {
@@ -1099,6 +1170,18 @@ function OrdersView({
                 </div>
                 <p className="money text-[19px] text-ink">{formatTHB(session.bill.due)}</p>
               </div>
+              {Number(session.bill.due) > 0 ? (
+                <button
+                  type="button"
+                  onClick={onPay}
+                  disabled={payBusy}
+                  className="mt-3 inline-flex h-9 items-center gap-1.5 bg-ink px-4 text-[11.5px] font-semibold text-paper transition-colors hover:bg-ink-soft disabled:opacity-60"
+                >
+                  <QrCode className="h-3.5 w-3.5" /> Pay with PromptPay
+                </button>
+              ) : (
+                <p className="mt-2 text-[10.5px] font-medium text-success">Paid in full — thank you.</p>
+              )}
             </section>
           ) : null}
 
@@ -1200,6 +1283,93 @@ function OrdersView({
         </div>
       )}
     </main>
+  );
+}
+
+function formatTarget(value: string | null): string {
+  if (!value) return '—';
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 13) {
+    return `${digits[0]}-${digits.slice(1, 5)}-${digits.slice(5, 10)}-${digits.slice(10, 12)}-${digits[12]}`;
+  }
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  return value;
+}
+
+function PromptPaySheet({
+  pay,
+  onClose,
+  onCheck,
+}: {
+  pay: GuestPayment;
+  onClose: () => void;
+  onCheck: () => void;
+}) {
+  useDismiss(true, onClose);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center">
+      <button
+        type="button"
+        aria-label="Close payment"
+        className="absolute inset-0 animate-fade bg-night/45"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Pay with PromptPay"
+        className="relative max-h-[92vh] w-full max-w-md animate-slide-up overflow-y-auto border-t border-line bg-surface-raised p-5 scrollbar-thin lg:animate-scale-in lg:border"
+      >
+        <header className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[9px] uppercase tracking-[0.18em] text-muted-soft">PromptPay</p>
+            <h2 className="mt-0.5 font-display text-[26px] leading-none text-ink">
+              Pay {formatTHB(pay.amount)}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 text-muted hover:text-ink"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </header>
+
+        <div className="mt-4 flex flex-col items-center">
+          <img src={pay.qrDataUrl} alt="PromptPay QR" className="h-60 w-60 border border-line bg-white p-2" />
+          <p className="mt-3 text-[9px] uppercase tracking-[0.16em] text-muted-soft">Account</p>
+          <p className="text-[13px] font-medium text-ink">{pay.accountName ?? 'PromptPay'}</p>
+          <p className="money text-[11px] text-ink-soft">{formatTarget(pay.promptPayTarget)}</p>
+        </div>
+
+        <ol className="mt-4 space-y-1 border-t border-line pt-3 text-[11px] leading-relaxed text-muted">
+          <li>1. Open any Thai banking app.</li>
+          <li>2. Scan the QR and confirm {formatTHB(pay.amount)}.</li>
+          <li>3. A team member confirms receipt; this screen updates by itself.</li>
+        </ol>
+        <p className="mt-2 font-mono text-[9.5px] text-muted-soft">Ref {pay.reference}</p>
+
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={onCheck}
+            className="h-10 flex-1 bg-ink text-[12px] font-semibold text-paper transition-colors hover:bg-ink-soft"
+          >
+            Check again
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-10 border border-line px-4 text-[12px] text-ink-soft"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

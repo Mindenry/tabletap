@@ -500,3 +500,48 @@ manual step and fills every screen with a believable service in progress.
 - Bootstrap run twice: second run reuses containers and skips the seed.
 - API smoke on a clean seed → all checks; web smoke 24/24; unit 30/30.
 - 18 screenshots, no console errors (requests screen added to the gallery).
+
+## 2026-11-26 — Session 11 (real PromptPay target and guest self-payment)
+
+The brief was: the transfer must actually work, to national ID `0000000000000` (Demo PromptPay),
+and a guest must be able to pay from their own phone without waiting for staff to start it.
+
+### The QR is real, the target is set
+
+- The seed now configures all three Spice Garden branches with `promptPayId = 0000000000000` and a
+  display name. A generated payload decodes as `NATIONAL_ID`, currency `764` (THB), with the amount.
+  Any Thai banking app reads it; scanning moves real money to that account.
+- Added `Branch.promptPayName` (migration `20261126150000_branch_promptpay_name`) so the POS QR and
+  the guest pay sheet show the account holder, not just a bare number. Settings exposes it next to
+  the PromptPay ID.
+- The QR only _requests_ money. Arrival is still confirmed by staff, or by the demo provider webhook,
+  because verifying a bank transfer needs a PSP contract. This is stated on the pay sheet itself.
+
+### Guest pays from the table
+
+- `POST /public/customer-session/payments/promptpay` builds the payload for the open bill's remaining
+  due, stores `AWAITING_CONFIRMATION`, writes an attempt, an audit entry and a `payment.updated`
+  outbox event, and returns the QR plus account name and target.
+- Re-requesting the same amount returns the existing pending QR (`reused: true`) instead of stacking
+  payments. A guest cannot ask for a QR when nothing is due or the table is closed.
+- Guest **Orders** shows **Pay with PromptPay** when a bill has a balance. The sheet renders the QR,
+  the account name, a formatted national ID, the reference and three steps, and polls the session
+  every five seconds; when staff or the webhook settles it, the sheet closes with “Payment received”.
+
+### Verification
+
+- Live HTTP: table 02 → session → `GET /public/customer-session` (bill `BILL-SATHORN-20261126-0010`,
+  `PARTIALLY_PAID`, due `347.60`) → guest QR `201` (name Demo PromptPay) → cashier
+  `simulate-provider` → `received: true`, bill `PAID`, due `0.00`.
+- Payload decoded from the running API: target `0000000000000`, type `NATIONAL_ID`, amount `347.60`,
+  currency `764`.
+- Mobile Playwright (390×844): Orders → Pay with PromptPay → sheet shows QR, name, formatted ID and
+  reference; no console errors.
+- `pnpm lint` 4/4, API unit 30/30, API smoke all checks, web smoke all checks, realtime all checks,
+  both apps typecheck clean.
+
+### Operational note
+
+- Resetting the schema (`prisma migrate reset`) while the API is running leaves Postgres prepared
+  plans stale (`0A000 cached plan must not change result type`). Reset with the API stopped, or
+  restart the API after a reset; this is what `pnpm bootstrap` does.

@@ -79,7 +79,13 @@ the brass rail.
 - **Billing** — bill snapshot, equal/amount/item splits, cancellation, receipt snapshot.
 - **Payments** — cash/card recording, PromptPay payload + QR, idempotent creation via
   `Idempotency-Key`, confirmation with locking, duplicate and overpayment rejection, expiry, refunds
-  recorded with audit, split-aware settlement (a payment can settle one share).
+  recorded with audit, split-aware settlement (a payment can settle one share). The seeded
+  PromptPay target is a real national ID (`0000000000000`, **Demo PromptPay**) and the branch
+  stores a display name shown on the POS QR and the guest pay sheet.
+- **Guest self-payment** — from **Orders** a guest can request a PromptPay QR for the open bill; the
+  QR carries the amount due, the payment stays `AWAITING_CONFIRMATION`, and the guest screen polls and
+  flips to “Paid” once staff or the webhook confirms. Re-requesting the same amount reuses the
+  pending QR instead of stacking payments.
 - **Provider webhook** — HMAC-SHA256 over the raw body, idempotent event ingest, automatic
   settlement of the matching payment when a provider reports `PAID`.
 - **Realtime at scale** — Socket.IO Redis adapter when `REDIS_URL` is set; the outbox dispatcher

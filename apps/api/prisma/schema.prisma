@@ -484,6 +484,7 @@ model Branch {
   serviceChargeType     String       @default("PERCENT") // PERCENT | FIXED
   serviceChargeValue    Decimal      @default(0) @db.Decimal(12, 2)
   promptPayId           String?
+  promptPayName         String?
   receiptHeader         String?
   receiptFooter         String?
   status                BranchStatus @default(ACTIVE)

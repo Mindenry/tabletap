@@ -9,6 +9,8 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import QRCode from 'qrcode';
+import { buildPromptPayPayload } from '@tabletap/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CatalogService } from '../catalog/catalog.service';
 import { OrdersService } from '../orders/orders.service';
@@ -319,6 +321,154 @@ export class PublicService {
     actor: ActorMeta,
   ) {
     return this.orders.createCustomerOrder(principal, dto, idempotencyKey, actor);
+  }
+
+  /**
+   * A guest requests to pay the open bill by PromptPay. The QR is a real EMVCo
+   * payload for the branch's PromptPay id; money moves when the guest scans it.
+   * The payment stays AWAITING_CONFIRMATION until staff (or a provider webhook)
+   * confirms it.
+   */
+  async createPromptPayForBill(principal: CustomerPrincipal, actor: ActorMeta) {
+    const session = await this.prisma.customerSession.findUnique({
+      where: { id: principal.customerSessionId },
+      include: { tableSession: { include: { branch: true, table: true } } },
+    });
+    if (!session || session.revokedAt || session.expiresAt.getTime() < Date.now()) {
+      throw new UnauthorizedException({ message: 'Session expired', code: 'CUSTOMER_SESSION_EXPIRED' });
+    }
+    if (['CLOSED', 'ABANDONED'].includes(session.tableSession.status)) {
+      throw new ConflictException({ message: 'This table is closed', code: 'TABLE_CLOSED' });
+    }
+
+    const bill = await this.prisma.bill.findFirst({
+      where: {
+        tableSessionId: session.tableSessionId,
+        status: { in: ['OPEN', 'PARTIALLY_PAID'] },
+      },
+      orderBy: { createdAt: 'desc' },
+      include: { payments: true },
+    });
+    if (!bill) {
+      throw new NotFoundException({
+        message: 'The bill has not been issued yet. Ask a team member.',
+        code: 'BILL_NOT_ISSUED',
+      });
+    }
+
+    const pending = bill.payments
+      .filter((payment) => ['PENDING', 'AWAITING_CONFIRMATION'].includes(payment.status))
+      .reduce((acc, payment) => acc.plus(payment.amount), new Prisma.Decimal(0));
+    const due = Prisma.Decimal.max(0, bill.total.minus(bill.paidTotal).minus(pending));
+    if (due.lessThanOrEqualTo(0)) {
+      throw new ConflictException({ message: 'There is nothing left to pay', code: 'NOTHING_DUE' });
+    }
+
+    const branch = session.tableSession.branch;
+    if (!branch.promptPayId) {
+      throw new ConflictException({
+        message: 'PromptPay is not configured for this branch',
+        code: 'PROMPTPAY_NOT_CONFIGURED',
+      });
+    }
+
+    const existing = bill.payments.find(
+      (payment) =>
+        payment.provider === 'PROMPTPAY' &&
+        payment.status === 'AWAITING_CONFIRMATION' &&
+        payment.amount.equals(due) &&
+        payment.promptPayPayload,
+    );
+    if (existing?.promptPayPayload) {
+      const qrDataUrl = await QRCode.toDataURL(existing.promptPayPayload, { margin: 2, width: 640 });
+      return {
+        paymentId: existing.id,
+        billId: bill.id,
+        reference: existing.reference,
+        amount: moneyString(existing.amount),
+        payload: existing.promptPayPayload,
+        qrDataUrl,
+        accountName: branch.promptPayName,
+        promptPayTarget: branch.promptPayId,
+        expiresAt: existing.expiresAt,
+        reused: true,
+      };
+    }
+
+    const reference = `PAY-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomToken(4).toUpperCase()}`;
+    const payload = buildPromptPayPayload({
+      target: { id: branch.promptPayId },
+      amount: moneyString(due),
+      reference: reference.slice(0, 25),
+    });
+    const qrDataUrl = await QRCode.toDataURL(payload, { margin: 2, width: 640 });
+
+    const payment = await this.prisma.payment.create({
+      data: {
+        tenantId: branch.tenantId,
+        branchId: branch.id,
+        billId: bill.id,
+        method: 'PROMPTPAY',
+        status: 'AWAITING_CONFIRMATION',
+        amount: due,
+        amountPaid: new Prisma.Decimal(0),
+        currency: branch.currency,
+        reference,
+        provider: 'PROMPTPAY',
+        promptPayPayload: payload,
+        expiresAt: new Date(Date.now() + 20 * 60 * 1000),
+      },
+    });
+    await this.prisma.paymentAttempt.create({
+      data: {
+        paymentId: payment.id,
+        action: 'CUSTOMER_PROMPTPAY_QR',
+        result: 'SUCCESS',
+        detail: `Guest requested a QR for ${moneyString(due)}`,
+      },
+    });
+
+    await this.audit.record(
+      {
+        tenantId: branch.tenantId,
+        branchId: branch.id,
+        actorType: 'CUSTOMER',
+        action: 'payment.promptpay_requested',
+        resourceType: 'Payment',
+        resourceId: payment.id,
+        after: { amount: moneyString(due), reference, billId: bill.id },
+        requestId: actor.requestId,
+      },
+      this.prisma,
+    );
+
+    await this.outbox.append(this.prisma, {
+      tenantId: branch.tenantId,
+      branchId: branch.id,
+      eventType: 'payment.updated',
+      aggregateType: 'Payment',
+      aggregateId: payment.id,
+      payload: {
+        paymentId: payment.id,
+        billId: bill.id,
+        status: 'AWAITING_CONFIRMATION',
+        amount: moneyString(due),
+        source: 'CUSTOMER_QR',
+      },
+    });
+
+    return {
+      paymentId: payment.id,
+      billId: bill.id,
+      reference,
+      amount: moneyString(due),
+      payload,
+      qrDataUrl,
+      accountName: branch.promptPayName,
+      promptPayTarget: branch.promptPayId,
+      expiresAt: payment.expiresAt,
+      reused: false,
+    };
   }
 
   async cancelOrder(

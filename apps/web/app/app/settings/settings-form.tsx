@@ -32,6 +32,7 @@ interface BranchSettings {
   serviceChargeType: string;
   serviceChargeValue: string;
   promptPayId: string | null;
+  promptPayName: string | null;
   receiptHeader: string | null;
   receiptFooter: string | null;
   status: string;
@@ -72,6 +73,7 @@ export function SettingsForm({
   const [serviceType, setServiceType] = React.useState(branch.serviceChargeType);
   const [serviceValue, setServiceValue] = React.useState(branch.serviceChargeValue);
   const [promptPayId, setPromptPayId] = React.useState(branch.promptPayId ?? '');
+  const [promptPayName, setPromptPayName] = React.useState(branch.promptPayName ?? '');
   const [receiptHeader, setReceiptHeader] = React.useState(branch.receiptHeader ?? '');
   const [receiptFooter, setReceiptFooter] = React.useState(branch.receiptFooter ?? '');
 
@@ -114,6 +116,7 @@ export function SettingsForm({
           serviceChargeType: serviceType,
           serviceChargeValue: Number(serviceValue || 0),
           promptPayId: promptPayId.replace(/\D/g, '') || undefined,
+          promptPayName: promptPayName.trim() || undefined,
           receiptHeader: receiptHeader.trim() || undefined,
           receiptFooter: receiptFooter.trim() || undefined,
         },
@@ -267,6 +270,21 @@ export function SettingsForm({
                 <p className="text-[11px] text-muted">
                   Used to build a real EMVCo PromptPay payload. A QR only requests payment; a cashier still
                   confirms it.
+                </p>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="promptpay-name" hint="shown to payers">
+                  PromptPay account name
+                </Label>
+                <Input
+                  id="promptpay-name"
+                  value={promptPayName}
+                  onChange={(event) => setPromptPayName(event.target.value)}
+                  placeholder="Demo PromptPay"
+                />
+                <p className="text-[11px] text-muted">
+                  Displayed next to the QR on the POS and the guest menu. The banking app shows the name
+                  registered with PromptPay, so keep them the same.
                 </p>
               </div>
             </CardContent>

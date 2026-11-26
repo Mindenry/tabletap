@@ -116,6 +116,11 @@ export class CreateBranchDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(120)
+  promptPayName?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(500)
   receiptHeader?: string;
 
@@ -175,6 +180,11 @@ export class UpdateBranchDto {
   @IsString()
   @MaxLength(32)
   promptPayId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  promptPayName?: string;
 
   @IsOptional()
   @IsString()

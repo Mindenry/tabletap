@@ -75,6 +75,8 @@ export function PosTerminal({
     paymentId: string;
     payload: string;
     dataUrl: string;
+    accountName: string | null;
+    promptPayTarget: string | null;
   } | null>(null);
   const [paymentId, setPaymentId] = React.useState<string | null>(null);
 
@@ -198,8 +200,16 @@ export function PosTerminal({
           id: string;
           promptPayPayload: string;
           qrPngDataUrl: string;
+          accountName: string | null;
+          promptPayTarget: string | null;
         }>(`/payments/${created.id}/promptpay`, { method: 'POST' });
-        setPromptPay({ paymentId: created.id, payload: qr.promptPayPayload, dataUrl: qr.qrPngDataUrl });
+        setPromptPay({
+          paymentId: created.id,
+          payload: qr.promptPayPayload,
+          dataUrl: qr.qrPngDataUrl,
+          accountName: qr.accountName,
+          promptPayTarget: qr.promptPayTarget,
+        });
         toast.success('PromptPay QR ready — payment awaits confirmation');
       } else {
         toast.success('Payment request created. Confirm once the money is in hand.');
@@ -717,6 +727,14 @@ export function PosTerminal({
             {promptPay ? (
               <div className="flex flex-col items-center gap-2 rounded-md border border-line bg-paper/60 p-3">
                 <img src={promptPay.dataUrl} alt="PromptPay QR" className="h-44 w-44 rounded bg-white p-1" />
+                {promptPay.accountName ? (
+                  <p className="text-[11px] font-medium text-ink">{promptPay.accountName}</p>
+                ) : null}
+                {promptPay.promptPayTarget ? (
+                  <p className="money text-[10px] text-muted">
+                    {formatPromptPayTarget(promptPay.promptPayTarget)}
+                  </p>
+                ) : null}
                 <p className="text-[11px] text-muted">
                   Ask the guest to scan, then confirm once you see the transfer. In the demo, “Simulate
                   provider paid” sends a signed webhook as if the bank had confirmed it.
@@ -861,4 +879,13 @@ export function PosTerminal({
       ) : null}
     </div>
   );
+}
+
+function formatPromptPayTarget(value: string): string {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 13) {
+    return `${digits[0]}-${digits.slice(1, 5)}-${digits.slice(5, 10)}-${digits.slice(10, 12)}-${digits[12]}`;
+  }
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  return value;
 }
