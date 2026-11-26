@@ -29,6 +29,11 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://tabletap:tabletap@localhost:5432/tabletap?schema=public
+      API_PORT: '4100'
+      API_URL: http://localhost:4100
+      WEB_URL: http://localhost:3100
+      CORS_ORIGINS: http://localhost:3100
+      NEXT_PUBLIC_API_URL: http://localhost:4100
       JWT_ACCESS_SECRET: ci-access-secret-ci-access-secret-ci-access-secret
       JWT_CUSTOMER_SECRET: ci-customer-secret-ci-customer-secret-ci-customer
       NODE_ENV: test
@@ -89,7 +94,12 @@ jobs:
             fi
             sleep 2
           done
-          echo "services did not start"; exit 1
+          echo "services did not start"
+          echo "--- api.log ---"
+          cat api.log || true
+          echo "--- web.log ---"
+          cat web.log || true
+          exit 1
 
       - name: API integration smoke
         run: pnpm --filter @tabletap/api test:integration
