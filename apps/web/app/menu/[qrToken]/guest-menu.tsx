@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { io, type Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 import { toast } from 'sonner';
 import {
   AlertTriangle,
@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { clientApi, errorMessage } from '@/lib/api';
 import { socketBaseUrl } from '@/lib/socket';
+import { DEMO_MODE } from '@/lib/demo/config';
+import { connectRealtime } from '@/lib/realtime';
 import { cn, elapsedLabel, formatTHB } from '@/lib/utils';
 
 interface PublicOption {
@@ -261,9 +263,19 @@ export function GuestMenu({
     void refreshSession();
   }, [refreshSession]);
 
+  // The public demo has no API socket, so keep the session fresh with polling
+  // and open a session automatically instead of waiting for the Orders tab.
+  React.useEffect(() => {
+    if (!DEMO_MODE) return;
+    markSession();
+    void refreshSession();
+    const timer = setInterval(() => void refreshSession(), 5000);
+    return () => clearInterval(timer);
+  }, [markSession, refreshSession]);
+
   React.useEffect(() => {
     const apiUrl = socketBaseUrl();
-    const socket: Socket = io(`${apiUrl}/realtime`, {
+    const socket: Socket = connectRealtime(`${apiUrl}/realtime`, {
       withCredentials: true,
       transports: ['websocket', 'polling'],
     });

@@ -1,11 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { io, type Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 import { toast } from 'sonner';
 import { BellRing, Check, Clock, Receipt, Utensils } from 'lucide-react';
 import { clientApi, errorMessage } from '@/lib/api';
 import { socketBaseUrl } from '@/lib/socket';
+import { connectRealtime } from '@/lib/realtime';
 import { cn, elapsedLabel, formatDateTime, formatTime } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/badge';
@@ -69,7 +70,7 @@ export function RequestsBoard({
   }, [status, load]);
 
   React.useEffect(() => {
-    const socket: Socket = io(`${socketBaseUrl()}/realtime`, {
+    const socket: Socket = connectRealtime(`${socketBaseUrl()}/realtime`, {
       withCredentials: true,
       transports: ['websocket', 'polling'],
     });

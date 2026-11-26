@@ -8,6 +8,7 @@ export default tseslint.config(
   {
     ignores: [
       '**/.next/**',
+      '**/.netlify/**',
       '**/dist/**',
       '**/node_modules/**',
       '**/coverage/**',

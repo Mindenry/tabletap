@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { DemoBanner } from '@/components/demo-banner';
 import { serverApi } from '@/lib/api-server';
 import { GuestMenu, type PublicItem } from './guest-menu';
 
@@ -47,11 +48,14 @@ export default async function GuestMenuPage({ params }: { params: Promise<{ qrTo
   }
 
   return (
-    <GuestMenu
-      token={qrToken}
-      restaurant={landing.restaurant}
-      table={landing.table}
-      initialMenu={landing.menu}
-    />
+    <>
+      <GuestMenu
+        token={qrToken}
+        restaurant={landing.restaurant}
+        table={landing.table}
+        initialMenu={landing.menu}
+      />
+      <DemoBanner />
+    </>
   );
 }

@@ -1,6 +1,8 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { ApiError } from './api';
+import { DEMO_MODE } from './demo/config';
+import { resolveFixture } from './demo/fixtures';
 
 const API_INTERNAL = process.env.API_URL ?? 'http://localhost:4100';
 
@@ -12,6 +14,14 @@ export async function serverApi<T>(
   path: string,
   init: RequestInit & { revalidate?: number } = {},
 ): Promise<T> {
+  if (DEMO_MODE) {
+    const data = resolveFixture(path);
+    if (data === undefined) {
+      throw new ApiError(404, 'DEMO_FIXTURE_MISSING', `No demo data for ${path}`);
+    }
+    return data as T;
+  }
+
   const cookieStore = await cookies();
   const cookieHeader = cookieStore.toString();
   const response = await fetch(`${API_INTERNAL}/api/v1${path}`, {

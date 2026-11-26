@@ -1,3 +1,5 @@
+import { DEMO_MODE } from './demo/config';
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
@@ -36,6 +38,11 @@ export interface ClientRequestOptions {
  * header for state-changing requests.
  */
 export async function clientApi<T>(path: string, options: ClientRequestOptions = {}): Promise<T> {
+  if (DEMO_MODE && typeof window !== 'undefined') {
+    const { demoClientApi } = await import('./demo/client');
+    return demoClientApi<T>(path, options);
+  }
+
   const method = options.method ?? 'GET';
   const headers: Record<string, string> = {};
   if (options.body !== undefined) headers['content-type'] = 'application/json';

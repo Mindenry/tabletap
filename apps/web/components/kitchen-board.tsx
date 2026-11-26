@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { io, type Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 import { toast } from 'sonner';
 import {
   Bell,
@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { clientApi, errorMessage } from '@/lib/api';
 import { socketBaseUrl } from '@/lib/socket';
+import { connectRealtime } from '@/lib/realtime';
 import { cn, elapsedLabel, formatTime } from '@/lib/utils';
 import type { KitchenTicket } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -119,7 +120,7 @@ export function KitchenBoard({
 
   React.useEffect(() => {
     const apiUrl = socketBaseUrl();
-    const socket: Socket = io(`${apiUrl}/realtime`, {
+    const socket: Socket = connectRealtime(`${apiUrl}/realtime`, {
       transports: ['websocket', 'polling'],
       withCredentials: true,
     });
