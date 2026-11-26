@@ -92,15 +92,17 @@ export function PosTerminal({
     ? initialBills.find((candidate) => candidate.tableSessionId === selectedTable.session?.id)
     : undefined;
 
-  const loadBill = React.useCallback(async (billId: string) => {
-    setLoadingBill(true);
+  const loadBill = React.useCallback(async (billId: string, silent = false) => {
+    if (!silent) setLoadingBill(true);
     try {
       setBill(await clientApi<BillDetail>(`/bills/${billId}`));
     } catch (error) {
-      toast.error(errorMessage(error));
-      setBill(null);
+      if (!silent) {
+        toast.error(errorMessage(error));
+        setBill(null);
+      }
     } finally {
-      setLoadingBill(false);
+      if (!silent) setLoadingBill(false);
     }
   }, []);
 
@@ -108,6 +110,14 @@ export function PosTerminal({
     if (existingBill) void loadBill(existingBill.id);
     else setBill(null);
   }, [existingBill?.id, loadBill, existingBill]);
+
+  // A guest can create a PromptPay payment from their own phone. Poll the open
+  // bill so the cashier sees it without reloading the screen.
+  React.useEffect(() => {
+    if (!bill?.id || paymentOpen || splitOpen) return;
+    const timer = setInterval(() => void loadBill(bill.id, true), 8000);
+    return () => clearInterval(timer);
+  }, [bill?.id, paymentOpen, splitOpen, loadBill]);
 
   // When a session has no bill yet, show the orders it will be built from.
   React.useEffect(() => {
@@ -250,6 +260,34 @@ export function PosTerminal({
       toast.success('Payment confirmed');
       setPaymentOpen(false);
       setPromptPay(null);
+      await loadBill(bill.id);
+      router.refresh();
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Settle a payment that already exists on the bill — typically a PromptPay
+   * payment the guest started from their own phone. The POS-created QR uses the
+   * dialog state instead.
+   */
+  async function settlePayment(payment: BillDetail['payments'][number], mode: 'confirm' | 'simulate') {
+    if (!bill) return;
+    setBusy(true);
+    try {
+      if (mode === 'simulate') {
+        await clientApi(`/payments/${payment.id}/simulate-provider`, { method: 'POST' });
+        toast.success('Provider webhook confirmed the payment');
+      } else {
+        await clientApi(`/payments/${payment.id}/confirm`, {
+          method: 'POST',
+          body: { amountPaid: Number(payment.amount) },
+        });
+        toast.success('Payment confirmed');
+      }
       await loadBill(bill.id);
       router.refresh();
     } catch (error) {
@@ -638,6 +676,26 @@ export function PosTerminal({
                               >
                                 <Undo2 className="h-3 w-3" /> Record refund
                               </button>
+                            ) : null}
+                            {['PENDING', 'AWAITING_CONFIRMATION'].includes(payment.status) ? (
+                              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => void settlePayment(payment, 'confirm')}
+                                  disabled={busy}
+                                  className="inline-flex h-7 items-center gap-1 border border-success/40 bg-success-soft px-2 text-[11px] font-medium text-success disabled:opacity-60"
+                                >
+                                  <Check className="h-3 w-3" /> Confirm received
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void settlePayment(payment, 'simulate')}
+                                  disabled={busy}
+                                  className="inline-flex h-7 items-center gap-1 border border-line px-2 text-[11px] font-medium text-ink-soft disabled:opacity-60"
+                                >
+                                  <Wand2 className="h-3 w-3" /> Simulate provider paid
+                                </button>
+                              </div>
                             ) : null}
                           </li>
                         ))}

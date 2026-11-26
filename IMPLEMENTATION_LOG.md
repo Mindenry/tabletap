@@ -537,6 +537,9 @@ and a guest must be able to pay from their own phone without waiting for staff t
   currency `764`.
 - Mobile Playwright (390×844): Orders → Pay with PromptPay → sheet shows QR, name, formatted ID and
   reference; no console errors.
+- End-to-end in two browser contexts: the guest requests the QR, the cashier opens Table 02 in the
+  POS, presses **Confirm received**, the bill flips to `PAID` and stays on screen with “Bill settled”,
+  and the guest sheet closes with “Paid in full”. No console errors.
 - `pnpm lint` 4/4, API unit 30/30, API smoke all checks, web smoke all checks, realtime all checks,
   both apps typecheck clean.
 

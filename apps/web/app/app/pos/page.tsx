@@ -37,7 +37,15 @@ export default async function PosPage({
     error = caught instanceof Error ? caught.message : 'Could not load the POS';
   }
 
-  const openBills = bills.filter((bill) => bill.status === 'OPEN' || bill.status === 'PARTIALLY_PAID');
+  // Keep the bill of every live session, including one that was just paid.
+  // The table sits in PAYMENT_PENDING until staff close it, and the cashier
+  // still needs the bill to print a receipt or close the table.
+  const liveSessionIds = new Set(
+    tables.map((table) => table.session?.id).filter((id): id is string => Boolean(id)),
+  );
+  const openBills = bills.filter(
+    (bill) => liveSessionIds.has(bill.tableSessionId) && bill.status !== 'CANCELLED',
+  );
   const branch = me.branches.find((candidate) => candidate.id === branchId);
 
   return (

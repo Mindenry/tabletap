@@ -85,7 +85,9 @@ the brass rail.
 - **Guest self-payment** — from **Orders** a guest can request a PromptPay QR for the open bill; the
   QR carries the amount due, the payment stays `AWAITING_CONFIRMATION`, and the guest screen polls and
   flips to “Paid” once staff or the webhook confirms. Re-requesting the same amount reuses the
-  pending QR instead of stacking payments.
+  pending QR instead of stacking payments. The POS shows the pending payment on the bill with
+  **Confirm received** and **Simulate provider paid**, and quietly refreshes so it appears without
+  the cashier reloading.
 - **Provider webhook** — HMAC-SHA256 over the raw body, idempotent event ingest, automatic
   settlement of the matching payment when a provider reports `PAID`.
 - **Realtime at scale** — Socket.IO Redis adapter when `REDIS_URL` is set; the outbox dispatcher
