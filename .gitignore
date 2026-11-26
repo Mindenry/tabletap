@@ -27,3 +27,6 @@ uploads/
 .print-out*/
 .print-agent-state.json
 backups/
+
+# Local Netlify folder
+.netlify
