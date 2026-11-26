@@ -21,6 +21,7 @@ import {
   Settings,
   ShieldCheck,
   Store,
+  Tag,
   Users,
   UtensilsCrossed,
 } from 'lucide-react';
@@ -55,6 +56,7 @@ const NAV: Array<{ group: string; items: NavItem[] }> = [
     group: 'Restaurant',
     items: [
       { href: '/app/menu', label: 'Menu', icon: BookOpen, permission: 'menu.read' },
+      { href: '/app/promotions', label: 'Promotions', icon: Tag, permission: 'promotion.manage' },
       { href: '/app/inventory', label: 'Inventory', icon: Boxes, permission: 'inventory.read' },
       { href: '/app/staff', label: 'Staff', icon: Users, permission: 'staff.read' },
     ],
@@ -240,7 +242,7 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
 
   return (
     <div className="min-h-screen bg-paper">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[232px] border-r border-[#2a251c] lg:block">
+      <aside className="no-print fixed inset-y-0 left-0 z-30 hidden w-[232px] border-r border-[#2a251c] lg:block">
         {sidebar}
       </aside>
 
@@ -256,8 +258,8 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
         </div>
       ) : null}
 
-      <div className="lg:pl-[232px]">
-        <header className="sticky top-0 z-20 flex h-12 items-center justify-between gap-3 border-b border-line bg-paper px-4 lg:hidden">
+      <div className="lg:pl-[232px] print:pl-0">
+        <header className="no-print sticky top-0 z-20 flex h-12 items-center justify-between gap-3 border-b border-line bg-paper px-4 lg:hidden">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
@@ -276,11 +278,13 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
           </Link>
         </header>
 
-        <ServiceRail
-          tenantName={me.tenant?.name ?? 'TableTap'}
-          branchName={branchName}
-          role={me.role ?? 'Platform admin'}
-        />
+        <div className="no-print">
+          <ServiceRail
+            tenantName={me.tenant?.name ?? 'TableTap'}
+            branchName={branchName}
+            role={me.role ?? 'Platform admin'}
+          />
+        </div>
 
         <main className="mx-auto w-full max-w-[1480px] px-4 py-6 sm:px-6 lg:px-8 lg:py-7">
           <PageTransition>{children}</PageTransition>

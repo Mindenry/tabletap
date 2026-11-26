@@ -14,6 +14,7 @@ import { TenancyModule } from './modules/tenancy/tenancy.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { FloorModule } from './modules/floor/floor.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { PromotionsModule } from './modules/promotions/promotions.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { KitchenModule } from './modules/kitchen/kitchen.module';
 import { BillingModule } from './modules/billing/billing.module';
@@ -43,6 +44,7 @@ import { RedisModule } from './modules/redis/redis.module';
     CatalogModule,
     FloorModule,
     InventoryModule,
+    PromotionsModule,
     OrdersModule,
     KitchenModule,
     BillingModule,

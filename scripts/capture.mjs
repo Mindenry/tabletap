@@ -75,10 +75,25 @@ for (const [path, name] of [
   ['/app/pos', '06-pos'],
   ['/app/analytics', '07-analytics'],
   ['/app/menu', '08-menu'],
+  ['/app/promotions', '17-promotions'],
   ['/app/day-close', '14-day-close'],
 ]) {
   await goto(path);
   await shot(name);
+}
+
+await goto('/app/bills');
+await page.waitForTimeout(600);
+const billHref = await page.locator('a[href^="/app/bills/"]').first().getAttribute('href');
+if (billHref) {
+  await page.goto(`${WEB}${billHref}`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: join(OUT, '15-bill.png') });
+  const billId = billHref.split('/')[3].split('?')[0];
+  await page.goto(`${WEB}/receipt/${billId}?format=a4`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: join(OUT, '16-receipt.png'), fullPage: true });
+  console.log('captured 15-bill, 16-receipt');
 }
 
 await goto('/menu/demo-sathorn-t03-4f8c2a91');
@@ -151,6 +166,9 @@ const PUBLISH = {
   '12-platform.png': 'platform.png',
   '13-guest-dish.png': 'guest-menu-dish.png',
   '14-day-close.png': 'day-close.png',
+  '15-bill.png': 'bill.png',
+  '16-receipt.png': 'receipt.png',
+  '17-promotions.png': 'promotions.png',
 };
 for (const [source, target] of Object.entries(PUBLISH)) {
   copyFileSync(join(OUT, source), join(DOCS, target));

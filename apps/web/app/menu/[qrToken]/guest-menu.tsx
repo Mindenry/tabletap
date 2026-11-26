@@ -182,6 +182,7 @@ export function GuestMenu({
   const [cartOpen, setCartOpen] = React.useState(false);
   const [activeCategory, setActiveCategory] = React.useState(initialMenu[0]?.id ?? '');
   const [search, setSearch] = React.useState('');
+  const [promoCode, setPromoCode] = React.useState('');
   const [detail, setDetail] = React.useState<PublicItem | null>(null);
   const [view, setView] = React.useState<'menu' | 'orders'>('menu');
   const [session, setSession] = React.useState<SessionState | null>(null);
@@ -355,12 +356,14 @@ export function GuestMenu({
               ...(line.modifierOptionIds.length > 0 ? { modifierOptionIds: line.modifierOptionIds } : {}),
               ...(line.note ? { note: line.note } : {}),
             })),
+            ...(promoCode.trim() ? { promotionCode: promoCode.trim().toUpperCase() } : {}),
             note: undefined,
           },
         },
       );
       idempotencyRef.current = `ord-${Math.random().toString(36).slice(2)}`;
       setCart([]);
+      setPromoCode('');
       sessionStorage.removeItem(`tt-cart-${token}`);
       setLastOrderId(order.id);
       setCartOpen(false);
@@ -805,6 +808,8 @@ export function GuestMenu({
           tableNumber={table.number}
           cart={cart}
           cartTotal={cartTotal}
+          promoCode={promoCode}
+          onPromoChange={setPromoCode}
           submitting={submitting}
           onClose={() => setCartOpen(false)}
           onChange={changeQuantity}
@@ -1202,6 +1207,8 @@ function CartSheet({
   tableNumber,
   cart,
   cartTotal,
+  promoCode,
+  onPromoChange,
   submitting,
   onClose,
   onChange,
@@ -1211,6 +1218,8 @@ function CartSheet({
   tableNumber: string;
   cart: CartLine[];
   cartTotal: number;
+  promoCode: string;
+  onPromoChange: (value: string) => void;
   submitting: boolean;
   onClose: () => void;
   onChange: (key: string, delta: number) => void;
@@ -1314,6 +1323,26 @@ function CartSheet({
         </div>
 
         <div className="px-5 pb-5">
+          <div className="mb-3 border-t border-line pt-3">
+            <label
+              htmlFor="promo-code"
+              className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-soft"
+            >
+              Promotion code
+            </label>
+            <input
+              id="promo-code"
+              value={promoCode}
+              onChange={(event) => onPromoChange(event.target.value.toUpperCase())}
+              placeholder="Optional"
+              autoComplete="off"
+              className="mt-1 h-9 w-full border border-line bg-paper/60 px-2.5 font-mono text-[12px] uppercase tracking-[0.08em] text-ink placeholder:font-sans placeholder:normal-case placeholder:tracking-normal placeholder:text-muted-soft focus:border-ink focus:outline-none"
+            />
+            <p className="mt-1 text-[10px] text-muted">
+              Applied when the order is priced. Invalid or expired codes are refused; nothing is charged.
+            </p>
+          </div>
+
           <dl className="space-y-1 border-t border-line pt-3 text-[12px]">
             <div className="flex justify-between">
               <dt className="text-muted">Subtotal</dt>

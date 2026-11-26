@@ -360,3 +360,42 @@ watched. The audit found presentation bugs rather than broken flows; the fixes b
 - Payment idempotency exercised over HTTP: two identical calls returned the same payment id.
 - Orders CSV returned 291 rows for the branch; day close returned the seeded day totals.
 - 14 screenshots, no console errors.
+
+## 2026-11-26 — Session 7 (the check and the receipt)
+
+### The printed artefacts are now designed, not generated
+
+- **Receipt page** at `/receipt/<billId>` with two layouts: an A4 folded check and an 80 mm
+  thermal roll. Serif letterhead, double rules, dotted leaders, a brass “PAID” stamp, Thai
+  thank-you, the fiscal notice, and the payment reference for every capture. Print CSS sets the
+  paper size per layout; the POS “Print receipt” action opens it.
+- **Bill detail** rebuilt as a check: quantity gutter, dish names in the display face, unit price and
+  per-line VAT, totals with leaders, a settlement panel with balance due, payments, splits, orders
+  and the receipt reference.
+- **Kitchen tickets** print from the board (the chrome is hidden for print and cards avoid breaking
+  across pages). Receipt printers are still driven by the browser; an ESC/POS agent remains.
+- **Seed receipts** now carry the same payload shape as runtime receipts (items, totals, payments,
+  branch/VAT, notice) instead of a three-field placeholder, so historical receipts print correctly.
+- The receipt renderer accepts the payload as an object or a string and tolerates older snapshots.
+
+### Verified
+
+- Receipt and bill pages open from the production build with no console errors.
+- 16 screenshots published; `receipt.png` and `bill.png` added to the README gallery.
+- `pnpm --filter @tabletap/web build` passes; `tsc --noEmit` clean.
+
+## 2026-11-26 — Session 8 (promotions, end to end)
+
+- **API** — `promotions` module: list (tenant/branch), create, update, all behind
+  `promotion.manage`, with class-level permission metadata, audit entries, code uniqueness
+  (`PROMOTION_CODE_TAKEN`), percentage validation, date ordering and branch access checks.
+- **UI** — `/app/promotions`: list with live state (active, scheduled, expired, fully redeemed),
+  value, code, branch, dates, redemptions and minimum spend; a side form for create/edit with
+  validation errors; pause/activate in one click.
+- **Guest** — the cart sheet now carries a promotion code field; the code travels with the order and
+  is priced server-side. Invalid or expired codes are refused before anything is written.
+- **Seed** already ships three demo codes (Welcome 10%, Happy Hour ฿100 off, Songkran 15% inactive).
+- Verified over HTTP: create 201 → patch value 200 → invalid code 400; an order with `OPEN10`
+  produced subtotal 387.00, discount 46.44, total 374.62; an unknown code returned
+  `PROMOTION_INVALID`; the test order was cancelled.
+- 17 screenshots including the promotions screen; no console errors.

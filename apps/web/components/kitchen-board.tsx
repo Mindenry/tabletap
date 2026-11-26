@@ -11,6 +11,7 @@ import {
   Clock,
   Flame,
   Play,
+  Printer,
   RefreshCw,
   UtensilsCrossed,
   X,
@@ -206,7 +207,7 @@ export function KitchenBoard({
 
   return (
     <div className={cn('space-y-4', fullscreen && 'space-y-5')}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="no-print flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex max-w-full flex-wrap items-center border border-line bg-surface-raised">
           <button
             type="button"
@@ -258,10 +259,13 @@ export function KitchenBoard({
           <Button variant="secondary" size="sm" onClick={() => void refresh()}>
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </Button>
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
+            <Printer className="h-3.5 w-3.5" /> Print
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 divide-x divide-line border-y border-line">
+      <div className="no-print grid grid-cols-3 divide-x divide-line border-y border-line">
         {[
           { label: 'New', value: counts.pending, tone: 'text-brand' },
           { label: 'In progress', value: counts.preparing, tone: 'text-gold' },
@@ -296,7 +300,7 @@ export function KitchenBoard({
               <article
                 key={ticket.id}
                 className={cn(
-                  'flex flex-col rounded-sm border bg-surface-raised',
+                  'flex flex-col rounded-sm border bg-surface-raised print:break-inside-avoid',
                   ticket.status === 'PENDING' && 'border-brand/40',
                   ticket.status === 'READY' && 'border-success/40',
                   late && 'border-danger/60',

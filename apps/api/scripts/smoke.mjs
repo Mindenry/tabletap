@@ -309,6 +309,17 @@ async function main() {
   const exportDenied = await viewerForExport.client.get(`/api/v1/orders/export?branchId=${branchId}`);
   check('viewer cannot export reports', exportDenied.status === 403, { status: exportDenied.status });
 
+  const promotions = await owner.get('/api/v1/promotions');
+  check(
+    'promotion list is available to a manager role',
+    promotions.status === 200 && Array.isArray(promotions.body),
+    { status: promotions.status },
+  );
+  const viewerPromotions = await viewerForExport.client.get('/api/v1/promotions');
+  check('viewer cannot manage promotions', viewerPromotions.status === 403, {
+    status: viewerPromotions.status,
+  });
+
   const paymentsList = await owner.get(`/api/v1/bills?branchId=${branchId}&limit=5`);
   check('bills list accepts the page parameters', paymentsList.status === 200 && Array.isArray(paymentsList.body));
 

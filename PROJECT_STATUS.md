@@ -16,7 +16,7 @@ complete because a route exists.
 | Demo seed                        | `pnpm db:seed`                                  | Pass — 2 tenants, 4 branches, 60 tables, 34 items, 607 orders |
 | API integration smoke            | `pnpm --filter @tabletap/api test:integration`  | **All checks passed** (50+)                                   |
 | Web integration smoke            | `node apps/web/scripts/web-smoke.mjs`           | **All checks passed** (24)                                    |
-| Production UI                    | `next build` + `next start`, Playwright         | **14 screenshots**, no console errors, CSS 200                |
+| Production UI                    | `next build` + `next start`, Playwright         | **17 screenshots**, no console errors, CSS 200                |
 | Realtime events                  | `pnpm --filter @tabletap/web test:realtime`     | **All checks passed** (2 sockets, staff + guest rooms)        |
 | LAN browser                      | Playwright against `192.168.1.107:3100`         | Socket **Live**, 0 console errors, QR links use LAN           |
 
@@ -78,6 +78,9 @@ the brass rail.
 - **Payments** — cash/card recording, PromptPay payload + QR, idempotent creation via
   `Idempotency-Key`, confirmation with locking, duplicate and overpayment rejection, expiry, refunds
   recorded with audit.
+- **Promotions** — management API and `/app/promotions` (percentage, fixed and coupon values, date
+  window, minimum spend, discount cap, redemption limit, per-branch or tenant-wide), applied by the
+  pricing engine and redeemable by guests from the cart.
 - **Operations** — day-close settlement per Bangkok business day (gross, refunds, net, cash
   collected, payment mix, open bills), CSV export of orders and bills, offset pagination and date
   filters on both lists.
@@ -95,16 +98,15 @@ the brass rail.
 
 ## Partially implemented
 
-| Feature           | What exists                                                                                       | What is missing                                         |
-| ----------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| Promotions        | Model, seed data, server-side validation, discount allocation, redemption counter with atomic cap | Management API and UI                                   |
-| Split bills       | Equal / amount / item splits stored and displayed                                                 | Splits are not individually settled or auto-marked paid |
-| Realtime          | Socket.IO gateway, room authorization, outbox, resync endpoint, guest-room routing verified       | Redis adapter for multiple API instances                |
-| Menu availability | Manual sold-out per branch                                                                        | Scheduled/time-window availability                      |
-| Notifications     | Table + seeded rows                                                                               | Inbox UI, delivery channels, worker                     |
-| Staff             | Membership roles, branch scopes, invitations                                                      | Station-level assignment, shift scheduling API/UI       |
-| Receipts          | Snapshot, printable HTML from browser                                                             | PDF generation service                                  |
-| Refunds           | Recorded with audit and caps                                                                      | Actual money movement / PSP call                        |
+| Feature           | What exists                                                                                 | What is missing                                         |
+| ----------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| Split bills       | Equal / amount / item splits stored and displayed                                           | Splits are not individually settled or auto-marked paid |
+| Realtime          | Socket.IO gateway, room authorization, outbox, resync endpoint, guest-room routing verified | Redis adapter for multiple API instances                |
+| Menu availability | Manual sold-out per branch                                                                  | Scheduled/time-window availability                      |
+| Notifications     | Table + seeded rows                                                                         | Inbox UI, delivery channels, worker                     |
+| Staff             | Membership roles, branch scopes, invitations                                                | Station-level assignment, shift scheduling API/UI       |
+| Receipts          | Snapshot with A4 check and 80 mm thermal layouts, issued once per paid bill                 | PDF delivery or e-mail receipt                          |
+| Refunds           | Recorded with audit and caps                                                                | Actual money movement / PSP call                        |
 
 ## Not implemented
 
@@ -130,6 +132,6 @@ See [KNOWN_ISSUES.md](./KNOWN_ISSUES.md). The most material:
 
 ## Exact next task
 
-Implement promotion management (API + `/app/promotions`) on top of the existing validation and
-redemption engine, then add the BullMQ worker with Redis adapter so realtime and scheduled jobs
-survive horizontal scaling.
+Mark split allocations paid when the payment that covers them is confirmed (a `splitId` on the
+payment, updated in the confirmation transaction), then add the BullMQ worker with the Redis
+adapter so realtime and scheduled jobs survive horizontal scaling.

@@ -41,6 +41,10 @@ Guest scans QR ──► Menu & cart ──► Order (server priced, idempotent)
 | -------------------------------------------- | ---------------------------------- |
 | ![Analytics](docs/screenshots/analytics.png) | ![Menu](docs/screenshots/menu.png) |
 
+| The check                          | Printable receipt                        |
+| ---------------------------------- | ---------------------------------------- |
+| ![Bill](docs/screenshots/bill.png) | ![Receipt](docs/screenshots/receipt.png) |
+
 | Guest menu — phone                                    | Staff overview — phone                           |
 | ----------------------------------------------------- | ------------------------------------------------ |
 | ![Guest menu](docs/screenshots/guest-menu-mobile.png) | ![Mobile](docs/screenshots/dashboard-mobile.png) |
@@ -53,9 +57,13 @@ Guest scans QR ──► Menu & cart ──► Order (server priced, idempotent)
 | ---------------------------------------------- | --------------------------------------------------- |
 | ![Guest menu](docs/screenshots/guest-menu.png) | ![Dish sheet](docs/screenshots/guest-menu-dish.png) |
 
-| Day close                                    | Platform administration                    |
-| -------------------------------------------- | ------------------------------------------ |
-| ![Day close](docs/screenshots/day-close.png) | ![Platform](docs/screenshots/platform.png) |
+| Day close                                    | Promotions                                     |
+| -------------------------------------------- | ---------------------------------------------- |
+| ![Day close](docs/screenshots/day-close.png) | ![Promotions](docs/screenshots/promotions.png) |
+
+| Platform administration                    |
+| ------------------------------------------ |
+| ![Platform](docs/screenshots/platform.png) |
 
 Screenshots are captured from the production build with Playwright
 (`pnpm screenshots`) against the seeded demo, not mocked up. The script writes
@@ -101,6 +109,7 @@ system. Type carries the hierarchy; colour is reserved for state and money.
 | Guest QR ordering                         | **Implemented**     | Table-scoped session cookie, server-side pricing, idempotent submission, availability re-checked             |
 | Kitchen display                           | **Implemented**     | Station tickets, per-item states, reject with reason, live updates + polling fallback                        |
 | Billing & split bills                     | **Implemented**     | Snapshotted bills, split equally / by amount / by item, receipts                                             |
+| Receipts & printing                       | **Implemented**     | Immutable snapshot, A4 check and 80 mm thermal layouts, browser print; kitchen tickets print from the board  |
 | Payments                                  | **Implemented**     | Cash/card recording, PromptPay EMVCo QR, locked confirmation, overpay/duplicate protection, refunds recorded |
 | Inventory & recipes                       | **Implemented**     | Atomic once-only deduction on kitchen accept, partial reversal on rejection, full reversal on cancel         |
 | Analytics                                 | **Implemented**     | Gross/net sales, payment mix, menu margin, kitchen timings, all from source tables                           |
@@ -108,7 +117,7 @@ system. Type carries the hierarchy; colour is reserved for state and money.
 | Audit log                                 | **Implemented**     | Security and money actions, request IDs, before/after where safe                                             |
 | Platform administration                   | **Implemented**     | Tenant lifecycle, suspension revokes sessions, plans, usage, health                                          |
 | PWA                                       | **Partial**         | Manifest, icons, offline page, connection banner. No offline ordering (by design)                            |
-| Promotions                                | **Partial**         | Server-side validation + redemption at order time; no management UI/API                                      |
+| Promotions                                | **Implemented**     | Codes with percentage/fixed/coupon value, date window, cap, redemption counter, management UI                |
 | Loyalty, shifts, notifications            | **Schema only**     | Tables and seed rows exist; no endpoints or screens                                                          |
 | Background worker / BullMQ                | **Not implemented** | Outbox dispatcher runs in-process; Redis is health-checked only                                              |
 | File uploads                              | **Not implemented** | Menu images are URL fields; no storage adapter yet                                                           |

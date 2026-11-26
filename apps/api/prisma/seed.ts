@@ -1376,23 +1376,63 @@ async function seedSales(input: {
           createdAt: paidAt,
         },
       });
+      const receiptNumber = await numbers.next(prisma, {
+        tenantId: input.tenant.id,
+        branchId: input.branch.id,
+        branchCode: input.branch.code,
+        type: 'RCP',
+        date: paidAt,
+      });
       await prisma.receipt.create({
         data: {
           billId: bill.id,
-          number: await numbers.next(prisma, {
-            tenantId: input.tenant.id,
-            branchId: input.branch.id,
-            branchCode: input.branch.code,
-            type: 'RCP',
-            date: paidAt,
-          }),
+          number: receiptNumber,
           issuedAt: paidAt,
           createdById: input.cashierId,
           payload: {
+            restaurant: {
+              name: input.tenant.name,
+              taxId: input.tenant.taxId,
+              address: input.tenant.address,
+            },
+            branch: {
+              name: input.branch.name,
+              address: input.branch.address,
+              phone: input.branch.phone,
+              vatRate: input.branch.vatRate.toFixed(2),
+              vatInclusive: input.branch.vatInclusive,
+            },
             billNumber,
+            receiptNumber,
+            orderNumbers: [number],
+            table: table.number,
+            issuedAt: paidAt.toISOString(),
+            currency: 'THB',
+            items: orderItems.map((orderItem) => ({
+              name: orderItem.nameSnapshot,
+              variantName: orderItem.variantName,
+              quantity: orderItem.quantity,
+              unitPrice: orderItem.unitPrice.toFixed(2),
+              lineTotal: orderItem.lineTotal.toFixed(2),
+              lineTax: orderItem.lineTax.toFixed(2),
+            })),
+            subtotal: pricing.subtotal.toFixed(2),
+            discountTotal: pricing.discountTotal.toFixed(2),
+            serviceCharge: pricing.serviceCharge.toFixed(2),
+            taxTotal: pricing.taxTotal.toFixed(2),
             total: pricing.total.toFixed(2),
-            items: orderItems.length,
-            note: 'Seeded demo receipt snapshot',
+            payments: [
+              {
+                method,
+                status: 'PAID',
+                amount: pricing.total.toFixed(2),
+                amountPaid: pricing.total.toFixed(2),
+                reference: `PAY-${number}`,
+              },
+            ],
+            refunds: [],
+            notice:
+              'This is a TableTap sales receipt, not a Thai e-Tax invoice. Confirm fiscal requirements before legal use.',
           } as Prisma.InputJsonValue,
         },
       });
