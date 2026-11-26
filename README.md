@@ -11,6 +11,19 @@ read another.
 The screenshots below are from the production build against the seeded demo. Every screen reads and
 writes the REST API. There is no mock data layer.
 
+## Live demo
+
+<https://tabletap-728.netlify.app>
+
+Sign in as `cashier@spicegarden.local` with `TableTap!2026`, or open table 02 on a phone:
+<https://tabletap-728.netlify.app/menu/demo-sathorn-t02-4f8c2a91>.
+
+Netlify hosts the Next.js app. The API, PostgreSQL and WebSockets do not run there, so this demo's API
+is served from a development machine behind a Cloudflare tunnel and its database is a separate seed
+with a non-payable PromptPay placeholder. The link works while that tunnel is up.
+[docs/deployment/netlify.md](docs/deployment/netlify.md) explains the split and how to make it
+permanent.
+
 ## Screenshots
 
 | Staff overview                               | Floor plan                                     |
@@ -278,6 +291,7 @@ CI runs the whole set on every pull request against a real PostgreSQL service an
 | [docs/security/security-model.md](docs/security/security-model.md)           | Threat model and controls                 |
 | [docs/operations/runbook.md](docs/operations/runbook.md)                     | Day-two operations                        |
 | [docs/deployment/production.md](docs/deployment/production.md)               | Production setup                          |
+| [docs/deployment/netlify.md](docs/deployment/netlify.md)                     | The Netlify split and its limits          |
 
 ## Using it from a phone
 
