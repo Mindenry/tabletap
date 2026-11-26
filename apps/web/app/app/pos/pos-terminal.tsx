@@ -18,7 +18,7 @@ import {
   Wand2,
 } from 'lucide-react';
 import { clientApi, errorMessage } from '@/lib/api';
-import { cn, elapsedLabel, formatDateTime, formatTHB, plural } from '@/lib/utils';
+import { cn, elapsedLabel, formatDateTime, formatTHB, newIdempotencyKey, plural } from '@/lib/utils';
 import type { BillDetail, BillRow, MenuItemRow, OrderRow, TableRow } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
@@ -201,7 +201,7 @@ export function PosTerminal({
           amount: Number(amount),
           ...(paymentSplitId ? { splitId: paymentSplitId } : {}),
         },
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: newIdempotencyKey(),
       });
       setPaymentId(created.id);
       if (method === 'PROMPTPAY') {

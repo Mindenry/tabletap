@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Check, MailPlus, Shield, UserRound } from 'lucide-react';
 import { clientApi, errorMessage } from '@/lib/api';
-import { cn, formatDate, initials } from '@/lib/utils';
+import { cn, copyText, formatDate, initials } from '@/lib/utils';
 import type { StaffRow } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
@@ -82,8 +82,12 @@ export function StaffManager({
       });
       toast.success(result.emailDelivered ? 'Invitation emailed' : 'Invitation created');
       if (result.acceptUrl) {
-        await navigator.clipboard.writeText(result.acceptUrl).catch(() => undefined);
-        toast.message('Development mode: invitation link copied to clipboard.');
+        const copied = await copyText(result.acceptUrl);
+        toast.message(
+          copied
+            ? 'Development mode: invitation link copied to clipboard.'
+            : 'Development mode: copy the invitation link from this dialog.',
+        );
       }
       setInviteOpen(false);
       setEmail('');

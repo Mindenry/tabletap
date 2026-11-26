@@ -70,3 +70,60 @@ export function todayRange(): { from: string; to: string } {
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   return { from: start.toISOString(), to: end.toISOString() };
 }
+
+/**
+ * A UUID v4 for idempotency keys.
+ *
+ * `crypto.randomUUID()` only exists in a secure context, so an iPad opening the
+ * POS over plain HTTP on the LAN cannot use it. `getRandomValues` works
+ * everywhere, so build the UUID from that.
+ */
+export function newIdempotencyKey(): string {
+  const cryptoApi = typeof globalThis === 'undefined' ? undefined : globalThis.crypto;
+  if (cryptoApi?.randomUUID) return cryptoApi.randomUUID();
+  const bytes = new Uint8Array(16);
+  if (cryptoApi?.getRandomValues) {
+    cryptoApi.getRandomValues(bytes);
+  } else {
+    for (let index = 0; index < bytes.length; index += 1) {
+      bytes[index] = Math.floor(Math.random() * 256);
+    }
+  }
+  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
+  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/**
+ * Copy text to the clipboard. `navigator.clipboard` is also restricted to
+ * secure contexts, so fall back to a hidden textarea when the POS is opened
+ * over plain HTTP on the LAN.
+ */
+export async function copyText(value: string): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      // Fall through to the legacy path.
+    }
+  }
+  if (typeof document === 'undefined') return false;
+  try {
+    const area = document.createElement('textarea');
+    area.value = value;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.top = '-1000px';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    area.setSelectionRange(0, value.length);
+    const copied = document.execCommand('copy');
+    document.body.removeChild(area);
+    return copied;
+  } catch {
+    return false;
+  }
+}

@@ -548,3 +548,24 @@ and a guest must be able to pay from their own phone without waiting for staff t
 - Resetting the schema (`prisma migrate reset`) while the API is running leaves Postgres prepared
   plans stale (`0A000 cached plan must not change result type`). Reset with the API stopped, or
   restart the API after a reset; this is what `pnpm bootstrap` does.
+
+## 2026-11-26 — Session 12 (the POS on plain HTTP)
+
+### `crypto.randomUUID` crashed Take payment on an iPad
+
+- `crypto.randomUUID()` exists only in a secure context. Over `http://192.168.1.107:3100` it is
+  `undefined`, so the POS threw before creating a payment. `newIdempotencyKey()` in
+  `apps/web/lib/utils.ts` now builds a v4 UUID from `crypto.getRandomValues`, which works on plain
+  HTTP, and only falls back to `Math.random` if even that is missing.
+
+### Same class of bug in the copy buttons
+
+- `navigator.clipboard` is also restricted to secure contexts. `copyText()` uses it when present and
+  otherwise copies through a hidden textarea, so the staff invitation link and the table QR link can
+  be copied from an iPad. Both call sites now report when the browser blocked the copy.
+
+### Verification
+
+- Reproduced in Chromium at the LAN address: `isSecureContext: false`, `randomUUID` missing,
+  `getRandomValues` present. Take payment created the payment with zero console errors.
+- `pnpm lint` 4/4, web typecheck clean, web rebuilt and restarted from the LAN address.

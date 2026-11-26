@@ -19,7 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { clientApi, errorMessage } from '@/lib/api';
-import { cn, elapsedLabel, formatTHB } from '@/lib/utils';
+import { cn, copyText, elapsedLabel, formatTHB } from '@/lib/utils';
 import type { TableRow } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
@@ -554,9 +554,10 @@ export function FloorBoard({
                         <Button
                           size="sm"
                           variant="secondary"
-                          onClick={() => {
-                            void navigator.clipboard.writeText(qr.url);
-                            toast.success('Link copied');
+                          onClick={async () => {
+                            const copied = await copyText(qr.url);
+                            if (copied) toast.success('Link copied');
+                            else toast.message('Copy blocked by the browser — select the link above.');
                           }}
                         >
                           <Link2 className="h-3.5 w-3.5" /> Copy
