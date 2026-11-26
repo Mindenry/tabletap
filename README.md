@@ -165,8 +165,9 @@ Two things worth knowing:
 
 - The payer's bank shows the name registered against the PromptPay ID, not the display name in
   Settings. Keep them the same.
-- The seeded PromptPay account is a development fixture. Replace it in **Settings** before taking
-  real money.
+- The seed reads `DEMO_PROMPT_PAY_ID` and `DEMO_PROMPT_PAY_NAME` from `.env`. Without them it seeds
+  `0000000000000`, a placeholder no bank will pay, so a public clone cannot send money to a stranger
+  by accident. Put your own account in Settings to take real payments.
 
 ## Architecture
 

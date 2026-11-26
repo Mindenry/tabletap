@@ -28,6 +28,14 @@ import {
   type RoleKey,
 } from '@tabletap/shared';
 import { priceOrder } from '../src/modules/orders/pricing';
+
+/**
+ * PromptPay target for the demo. The default is a placeholder that a banking
+ * app will refuse, so a public demo cannot send money to a stranger. Set
+ * DEMO_PROMPT_PAY_ID and DEMO_PROMPT_PAY_NAME in .env to use your own.
+ */
+const demoPromptPayId = process.env.DEMO_PROMPT_PAY_ID?.trim() || '0000000000000';
+const demoPromptPayName = process.env.DEMO_PROMPT_PAY_NAME?.trim() || 'Demo PromptPay';
 import { DocumentNumberService } from '../src/common/common.module';
 
 const prisma = new PrismaClient();
@@ -1490,8 +1498,8 @@ async function main() {
         vatInclusive: true,
         serviceChargeEnabled: true,
         serviceChargeValue: 10,
-        promptPayId: '0000000000000',
-        promptPayName: 'Demo PromptPay',
+        promptPayId: demoPromptPayId,
+        promptPayName: demoPromptPayName,
       },
       {
         name: 'Ari',
@@ -1501,8 +1509,8 @@ async function main() {
         vatInclusive: true,
         serviceChargeEnabled: false,
         serviceChargeValue: 0,
-        promptPayId: '0000000000000',
-        promptPayName: 'Demo PromptPay',
+        promptPayId: demoPromptPayId,
+        promptPayName: demoPromptPayName,
       },
       {
         name: 'Thonglor',
@@ -1512,8 +1520,8 @@ async function main() {
         vatInclusive: true,
         serviceChargeEnabled: true,
         serviceChargeValue: 10,
-        promptPayId: '0000000000000',
-        promptPayName: 'Demo PromptPay',
+        promptPayId: demoPromptPayId,
+        promptPayName: demoPromptPayName,
       },
     ],
   });
@@ -1534,7 +1542,7 @@ async function main() {
         vatInclusive: true,
         serviceChargeEnabled: false,
         serviceChargeValue: 0,
-        promptPayId: '0898765432',
+        promptPayId: '0000000000',
       },
     ],
   });

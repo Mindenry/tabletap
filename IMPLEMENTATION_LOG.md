@@ -501,16 +501,17 @@ manual step and fills every screen with a believable service in progress.
 - API smoke on a clean seed → all checks; web smoke 24/24; unit 30/30.
 - 18 screenshots, no console errors (requests screen added to the gallery).
 
-## 2026-11-26 — Session 11 (real PromptPay target and guest self-payment)
+## 2026-11-26 — Session 11 (a real PromptPay target and guest self-payment)
 
-The brief was: the transfer must actually work, to national ID `0000000000000` (Demo PromptPay),
-and a guest must be able to pay from their own phone without waiting for staff to start it.
+The brief was: the transfer must actually work, against the account the restaurant configures, and a
+guest must be able to pay from their own phone without waiting for staff to start it.
 
 ### The QR is real, the target is set
 
-- The seed now configures all three Spice Garden branches with `promptPayId = 0000000000000` and a
-  display name. A generated payload decodes as `NATIONAL_ID`, currency `764` (THB), with the amount.
-  Any Thai banking app reads it; scanning moves real money to that account.
+- The seed configures all three Spice Garden branches from `DEMO_PROMPT_PAY_ID` and
+  `DEMO_PROMPT_PAY_NAME`. Without them it seeds a non-payable placeholder (`0000000000000`), so a
+  public clone cannot send money to a stranger by accident. A generated payload decodes as
+  `NATIONAL_ID`, currency `764` (THB), with the amount.
 - Added `Branch.promptPayName` (migration `20261126150000_branch_promptpay_name`) so the POS QR and
   the guest pay sheet show the account holder, not just a bare number. Settings exposes it next to
   the PromptPay ID.
@@ -531,10 +532,10 @@ and a guest must be able to pay from their own phone without waiting for staff t
 ### Verification
 
 - Live HTTP: table 02 → session → `GET /public/customer-session` (bill `BILL-SATHORN-20261126-0010`,
-  `PARTIALLY_PAID`, due `347.60`) → guest QR `201` (name Demo PromptPay) → cashier
+  `PARTIALLY_PAID`, due `347.60`) → guest QR `201` (the seeded account name) → cashier
   `simulate-provider` → `received: true`, bill `PAID`, due `0.00`.
-- Payload decoded from the running API: target `0000000000000`, type `NATIONAL_ID`, amount `347.60`,
-  currency `764`.
+- Payload decoded from the running API: target matches the configured `DEMO_PROMPT_PAY_ID`, type
+  `NATIONAL_ID`, amount `347.60`, currency `764`.
 - Mobile Playwright (390×844): Orders → Pay with PromptPay → sheet shows QR, name, formatted ID and
   reference; no console errors.
 - End-to-end in two browser contexts: the guest requests the QR, the cashier opens Table 02 in the
