@@ -1,31 +1,15 @@
 ﻿# TableTap
 
-**Restaurant ordering, kitchen, POS and operations â€” one connected system.**
+A restaurant system for Thai restaurants: QR ordering at the table, a kitchen board that routes
+tickets by station, a cashier POS with PromptPay, and the bills, stock movements, reports and audit
+trail that come out of a service.
 
-TableTap is a multi-tenant restaurant platform built for Thai restaurants: QR ordering at the
-table, a station-routed kitchen display, a cashier POS with PromptPay, bill snapshots, inventory
-that deducts from recipes, and analytics computed from real transactions.
+One deployment hosts several restaurants. Each one has its own branches, staff, menu, tables and
+data. The API scopes every query to the signed-in membership, so a manager at one restaurant cannot
+read another.
 
-It is a working product, not a UI prototype. Every screen calls a real API; every number is a SQL
-aggregate over persisted rows. The demo dataset is generated from actual orders, bills and
-payments.
-
-```
-Guest scans QR â”€â”€â–º Menu & cart â”€â”€â–º Order (server priced, idempotent)
-                                        â”‚
-                                        â–¼
-                              Kitchen tickets by station
-                                        â”‚
-                    accept â†’ start â†’ item ready â†’ served
-                                        â”‚
-                                        â–¼
-                       Bill snapshot â”€â”€â–º Payment (cash / PromptPay)
-                                        â”‚
-                                        â–¼
-                    Receipt Â· inventory movements Â· analytics Â· audit log
-```
-
----
+The screenshots below are from the production build against the seeded demo. Every screen reads and
+writes the REST API. There is no mock data layer.
 
 ## Screenshots
 
@@ -37,205 +21,268 @@ Guest scans QR â”€â”€â–º Menu & cart â”€â”€â–º Order
 | ---------------------------------------- | -------------------------------- |
 | ![Kitchen](docs/screenshots/kitchen.png) | ![POS](docs/screenshots/pos.png) |
 
-| Analytics                                    | Menu management                    |
-| -------------------------------------------- | ---------------------------------- |
-| ![Analytics](docs/screenshots/analytics.png) | ![Menu](docs/screenshots/menu.png) |
+| Guest menu on a phone                                 | The check                          |
+| ----------------------------------------------------- | ---------------------------------- |
+| ![Guest menu](docs/screenshots/guest-menu-mobile.png) | ![Bill](docs/screenshots/bill.png) |
 
-| The check                          | Printable receipt                        |
-| ---------------------------------- | ---------------------------------------- |
-| ![Bill](docs/screenshots/bill.png) | ![Receipt](docs/screenshots/receipt.png) |
+| Printable receipt                        | Analytics                                    |
+| ---------------------------------------- | -------------------------------------------- |
+| ![Receipt](docs/screenshots/receipt.png) | ![Analytics](docs/screenshots/analytics.png) |
 
-| Guest menu â€” phone                                  | Staff overview â€” phone                         |
-| ----------------------------------------------------- | ------------------------------------------------ |
-| ![Guest menu](docs/screenshots/guest-menu-mobile.png) | ![Mobile](docs/screenshots/dashboard-mobile.png) |
+More in `docs/screenshots/`. They are captured with Playwright from a running build
+(`pnpm screenshots`), not mocked up.
 
-| Landing                                  | Sign in                                |
-| ---------------------------------------- | -------------------------------------- |
-| ![Landing](docs/screenshots/landing.png) | ![Sign in](docs/screenshots/login.png) |
+The interface uses Fraunces for display type and IBM Plex Sans Thai for UI, both self-hosted. Money
+is always tabular. Colour is used for state and money, not decoration.
 
-| Guest menu â€” desktop                         | Guest menu â€” dish sheet                           |
-| ---------------------------------------------- | --------------------------------------------------- |
-| ![Guest menu](docs/screenshots/guest-menu.png) | ![Dish sheet](docs/screenshots/guest-menu-dish.png) |
+## What works
 
-| Day close                                    | Promotions                                     |
-| -------------------------------------------- | ---------------------------------------------- |
-| ![Day close](docs/screenshots/day-close.png) | ![Promotions](docs/screenshots/promotions.png) |
+- Identity: Argon2id passwords, HttpOnly session cookies, rotating refresh tokens with reuse
+  detection, CSRF, login lockout and rate limits.
+- Roles and permissions checked per request, with branch scoping. Invitations are hashed, expire in
+  seven days and can be revoked.
+- Menu with variants, modifier groups, per-branch availability and price history.
+- Floor plan with persisted table positions, QR tokens that can be rotated or revoked, and PNG/SVG
+  label downloads.
+- Guest ordering from a table QR: server-side pricing, idempotent submission, live order progress,
+  and waiter, water, utensil and bill requests.
+- Kitchen display with station tickets, per-item states, reject with reason, and both live updates
+  and a polling fallback.
+- Bills built from order snapshots, split equally, by amount or by item, with A4 and 80 mm receipts.
+- Payments: cash and card recorded, PromptPay QR, locked confirmation, overpayment and duplicate
+  protection, refunds recorded, and split-aware settlement.
+- Inventory with recipes. Stock is deducted once when the kitchen accepts an order, reversed on
+  rejection or cancellation.
+- Analytics, day close for the Bangkok business day, and CSV exports for orders and bills.
+- Promotions with percentage, fixed and coupon values, date windows, caps and redemption limits.
+- Audit log, platform administration, transactional outbox, Redis-backed realtime, health and
+  Prometheus metrics, backups, and an ESC/POS print agent for 80 mm printers.
 
-| Guest requests                             | Platform administration                    |
-| ------------------------------------------ | ------------------------------------------ |
-| ![Requests](docs/screenshots/requests.png) | ![Platform](docs/screenshots/platform.png) |
+## What is not built
 
-Screenshots are captured from the production build with Playwright
-(`pnpm screenshots`) against the seeded demo, not mocked up. The script writes
-`.screenshots/` and publishes the curated set into `docs/screenshots/`.
+- Automatic payment verification. A QR requests money; nothing in the app can prove the money
+  arrived without a bank or PSP contract. A cashier confirms, or a signed webhook settles it.
+- Offline ordering. The PWA caches the shell and shows a connection banner; it does not queue orders
+  while the network is down.
+- Refunds do not move money. Recording one updates the ledger and the audit log.
+- Receipts are sales receipts. They carry VAT lines but are not e-Tax invoices.
+- File uploads. Menu images are URLs.
+- A background worker. The outbox dispatcher runs inside the API process.
+- Loyalty and shift scheduling. Tables and seed rows exist; there are no endpoints or screens.
 
----
+## Quick start
 
-## Design system
+You need Node 20 or later, pnpm 10 (Corepack is fine) and Docker.
 
-The interface reads as a **service ledger**: the artefacts a restaurant already trusts â€” the
-printed check, the reservation book, the ticket on the pass, the brass rail â€” rebuilt as a screen
-system. Type carries the hierarchy; colour is reserved for state and money.
+```bash
+pnpm install
+pnpm demo
+```
 
-- **Type** â€” Fraunces (display) and IBM Plex Sans Thai (UI, Latin + Thai subsets), both
-  **self-hosted** in `apps/web/app/fonts` so builds never depend on a network fetch. Money uses
-  tabular Plex figures so the `à¸¿` glyph is correct at every size.
-- **Palette** â€” porcelain paper `#f3ede2`, ink `#16130e`, oxblood `#7a3030`, brass `#9a7733`,
-  sage `#56674e`, and a near-black `#12100b` for the staff chrome. No purple, no gradient text,
-  no glow, no decorative grain.
-- **Surfaces** â€” one declaration per element: a hairline border _or_ a shadow, never both. Radii
-  stay between 3px (stamps) and 18px (sheets). Cards are border-only; depth appears only on
-  overlays and modals.
-- **Layout** â€” a fixed staff sidebar, a live service rail (tenant Â· branch Â· section Â· clock), a
-  horizontal metric band instead of KPI cards, a positioned floor plan drawn from persisted
-  coordinates, and a two-column guest ordering surface: the menu on the left, a sticky table rail
-  carrying the running order and floor requests on the right.
-- **Motion** â€” scroll reveals via IntersectionObserver, count-up figures, page transitions,
-  dialog and sheet entrances. All motion is disabled under `prefers-reduced-motion`.
-- **Components** â€” buttons, inputs, dialogs, tabs, tables, status stamps, metric band,
-  empty/skeleton/error states, toast notifications, and permission-aware navigation.
+`pnpm demo` runs `scripts/setup.mjs` and then starts both apps. Setup writes `.env` if it is missing,
+starts PostgreSQL, Redis and Mailpit, applies pending migrations, and seeds only when the database is
+empty. Running it again reuses the containers and skips the seed.
 
----
+To set up without starting the apps:
 
-## What is implemented
+```bash
+pnpm bootstrap
+pnpm dev
+```
 
-| Area                                      | Status              | Notes                                                                                                        |
-| ----------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Multi-tenant identity, roles, permissions | **Implemented**     | Permission checks on every request, branch scoping, tenant isolation tested                                  |
-| Authentication & sessions                 | **Implemented**     | Argon2id, HttpOnly cookies, refresh rotation with reuse detection, CSRF, lockout, rate limiting              |
-| Branches, staff, invitations              | **Implemented**     | Invitation tokens hashed, 7-day expiry, role/branch assignment, immediate revocation                         |
-| Tables, zones, floor plan                 | **Implemented**     | Positions persisted, QR tokens encrypted + hashed, rotate/revoke, PNG/SVG labels                             |
-| Menu, variants, modifier groups           | **Implemented**     | Per-branch availability, price history, station routing                                                      |
-| Guest QR ordering                         | **Implemented**     | Table-scoped session cookie, server-side pricing, idempotent submission, availability re-checked             |
-| Kitchen display                           | **Implemented**     | Station tickets, per-item states, reject with reason, live updates + polling fallback                        |
-| Billing & split bills                     | **Implemented**     | Snapshotted bills, split equally / by amount / by item, receipts                                             |
-| Receipts & printing                       | **Implemented**     | Immutable snapshot, A4 check and 80 mm thermal layouts, browser print; kitchen tickets print from the board  |
-| Payments                                  | **Implemented**     | Cash/card recording, PromptPay EMVCo QR, locked confirmation, overpay/duplicate protection, refunds recorded |
-| Inventory & recipes                       | **Implemented**     | Atomic once-only deduction on kitchen accept, partial reversal on rejection, full reversal on cancel         |
-| Analytics                                 | **Implemented**     | Gross/net sales, payment mix, menu margin, kitchen timings, all from source tables                           |
-| Day close & exports                       | **Implemented**     | Bangkok business day, cash collected, open bills, CSV for orders and bills, print view                       |
-| Audit log                                 | **Implemented**     | Security and money actions, request IDs, before/after where safe                                             |
-| Platform administration                   | **Implemented**     | Tenant lifecycle, suspension revokes sessions, plans, usage, health                                          |
-| PWA                                       | **Partial**         | Manifest, icons, offline page, connection banner. No offline ordering (by design)                            |
-| Promotions                                | **Implemented**     | Codes with percentage/fixed/coupon value, date window, cap, redemption counter, management UI                |
-| Loyalty, shifts, notifications            | **Schema only**     | Tables and seed rows exist; no endpoints or screens                                                          |
-| Background worker / BullMQ                | **Not implemented** | Outbox dispatcher runs in-process; Redis is health-checked only                                              |
-| File uploads                              | **Not implemented** | Menu images are URL fields; no storage adapter yet                                                           |
-| AI assistant, report exports              | **Not implemented** | Deliberately deferred; see roadmap                                                                           |
+Open:
 
-Full detail: [PROJECT_STATUS.md](./PROJECT_STATUS.md) Â· [KNOWN_ISSUES.md](./KNOWN_ISSUES.md).
+| What       | URL                                                    |
+| ---------- | ------------------------------------------------------ |
+| Staff app  | <http://localhost:3100/login>                          |
+| Guest menu | <http://localhost:3100/menu/demo-sathorn-t02-4f8c2a91> |
+| API docs   | <http://localhost:4100/api/docs>                       |
+| Mailpit    | <http://localhost:8125>                                |
 
----
+The demo password for every account is `TableTap!2026`.
 
-## Technology
+| Email                       | Role                 | Scope                                   |
+| --------------------------- | -------------------- | --------------------------------------- |
+| `owner@spicegarden.local`   | Owner                | All three branches, full access         |
+| `manager@spicegarden.local` | Manager              | Sathorn and Ari                         |
+| `cashier@spicegarden.local` | Cashier              | Bills, payments, refunds                |
+| `kitchen@spicegarden.local` | Kitchen              | Kitchen board                           |
+| `waiter@spicegarden.local`  | Waiter               | Floor, serving, requests                |
+| `viewer@spicegarden.local`  | Viewer               | Read-only                               |
+| `owner@baanthai.local`      | Owner, second tenant | Proves isolation                        |
+| `platform@tabletap.local`   | Platform admin       | No restaurant data without a membership |
 
-- **Frontend** â€” Next.js 15 (App Router), React 19, TypeScript strict, Tailwind CSS v4, Radix UI
-  primitives, TanStack Query available, Recharts, Socket.IO client, Zod.
-- **Backend** â€” NestJS 11, Prisma 6, PostgreSQL 16, Socket.IO, Argon2id, class-validator,
-  Swagger/OpenAPI, Pino-style structured request logs.
-- **Infrastructure** â€” pnpm workspaces + Turborepo, Docker Compose (Postgres, Redis, Mailpit,
-  optional MinIO), GitHub Actions.
-- **Testing** â€” Vitest unit suite, HTTP integration smoke suites for the API and the web app.
+## The demo scene
 
----
+The seed leaves the restaurant mid-service, so no screen is empty:
+
+- Table 02 has a split bill with one share paid and one open, an open bill request, and a guest
+  session you can open on a phone.
+- Table 01 has a water request and a waiter call that a colleague has already acknowledged.
+- Forty resolved requests sit behind the history tabs.
+- Coconut milk and prawns are below their minimum, so the dashboard and inventory show real low
+  stock.
+- Mango sticky rice is sold out at Sathorn.
+- One historical payment carries a refund.
+
+Table 02 has a balance of ฿347.60, which makes it the useful link for testing payment:
+
+```
+http://localhost:3100/menu/demo-sathorn-t02-4f8c2a91
+```
+
+Table 03 has no bill and shows the plain ordering flow:
+
+```
+http://localhost:3100/menu/demo-sathorn-t03-4f8c2a91
+```
+
+## Walk through a service
+
+1. Sign in as the owner and open **Floor**. Pick a free table and open a session, or scan its QR.
+2. Open the guest menu on a phone, add a dish with a modifier and send the order.
+3. Open **Kitchen** on another screen. Accept the ticket, start it, mark the items ready.
+4. The guest tab updates as the kitchen moves. Ask for the bill from **Orders**.
+5. Staff see the request in **Guest requests** and resolve it.
+6. In **POS**, build the bill and split it if you like. Take cash, or press **Generate QR** for
+   PromptPay. Confirm once the money is in, print the receipt, then close the table.
+
+The bill, the stock movements, the receipt snapshot and the day-close figures all come from the same
+rows you just created.
+
+## PromptPay
+
+A PromptPay QR from the POS or the guest menu is a real EMVCo payload with the amount and a
+reference, validated with CRC-16/CCITT. Any Thai banking app will read it and move money to the
+account configured for the branch.
+
+The app cannot see that transfer. Without a bank or PSP contract there is no API to ask, so a payment
+stays `AWAITING_CONFIRMATION` until a cashier confirms it. The POS button **Simulate provider paid**
+signs a webhook body and posts it to the real webhook endpoint, which is the path a provider would
+use. That keeps the demo honest about where the confirmation comes from.
+
+Two things worth knowing:
+
+- The payer's bank shows the name registered against the PromptPay ID, not the display name in
+  Settings. Keep them the same.
+- The seeded PromptPay account is a development fixture. Replace it in **Settings** before taking
+  real money.
+
+## Architecture
+
+```
+              +-------------------------------+
+Browser ----> | Next.js (server + client)     |
+              +---------------+---------------+
+                              | REST /api/v1, cookies + CSRF
+                              v
+              +-------------------------------+
+              | NestJS API, one module per    |
+              | domain                        |
+              +------+----------------+-------+
+                     |                |
+                     v                v
+               PostgreSQL        Redis (optional)
+               source of truth   socket adapter, health
+                     |
+                     +--> audit log
+                     +--> outbox --> /realtime
+```
+
+- PostgreSQL is authoritative. Realtime events are notifications; clients resync over REST when they
+  detect a gap in the per-tenant sequence.
+- Business writes and their events commit together in an outbox, then a dispatcher publishes them.
+- Money is `NUMERIC(12,2)` and `Prisma.Decimal` from the database to the UI. No floats.
+- Prices come from the server. Client payloads carry item ids and quantities, never amounts.
+- Tenant and branch ids from the client are validated against the membership, never trusted.
+
+## Money rules
+
+1. `lineSubtotal = round2((unitPrice + modifiersPerUnit) * quantity)`.
+2. Order discounts are allocated across lines proportionally; the remainder goes to the last line so
+   the allocations add up exactly.
+3. Service charge is a percentage of the net subtotal, or a fixed amount capped at the net subtotal.
+4. VAT-inclusive: `total = net + service`, tax extracted as `base * rate / (100 + rate)`.
+   VAT-exclusive: `tax = base * rate / 100` and added to the total.
+5. Tax is computed once on the taxable base and then allocated to lines, so the line taxes sum to the
+   tax on the bill total.
+6. A bill totals its linked order snapshots. Editing the menu later cannot rewrite history.
+
+The full rules, including rounding and refunds, are in
+[docs/architecture/financial-rules.md](docs/architecture/financial-rules.md).
 
 ## Repository layout
 
 ```
 apps/
-  api/          NestJS API + Prisma schema, migration, seed
-    src/modules auth, tenancy, catalog, floor, orders, kitchen,
-                billing, inventory, analytics, platform, realtime, audit
-  web/          Next.js app (staff app, kitchen display, POS, guest menu)
+  api/       NestJS API, Prisma schema, migrations and seed
+  web/       Next.js app: staff app, kitchen display, POS, guest menu
 packages/
-  shared/       money, permissions, state machines, PromptPay, realtime contract
-docs/           architecture, database, api, workflows, security, deployment, operations
-tests/load/     k6 scripts (provided, not executed here)
+  shared/    money, permissions, state machines, PromptPay, realtime contract
+tools/
+  print-agent/   ESC/POS agent for 80 mm kitchen tickets and receipts
+tests/
+  load/      k6 scripts
+docs/        architecture, database, API, workflows, security, deployment, operations
+scripts/     setup, screenshots, backup
 ```
 
----
+## Commands
 
-## Quick start
+| Command              | What it does                                                 |
+| -------------------- | ------------------------------------------------------------ |
+| `pnpm demo`          | Set up the environment, then run the API and the web app     |
+| `pnpm bootstrap`     | Set up only: `.env`, containers, migrations, seed when empty |
+| `pnpm dev`           | Run both apps (API on 4100, web on 3100)                     |
+| `pnpm build`         | Build every package                                          |
+| `pnpm lint`          | ESLint 9 flat config, all packages                           |
+| `pnpm typecheck`     | TypeScript with no emit                                      |
+| `pnpm test`          | Unit tests                                                   |
+| `pnpm test:api`      | HTTP smoke against a running API and the seed                |
+| `pnpm test:web`      | Server-rendered checks against a running web app             |
+| `pnpm test:realtime` | Two real sockets, staff and guest rooms                      |
+| `pnpm db:reset`      | Drop and recreate the schema                                 |
+| `pnpm db:seed`       | Load the demo data                                           |
+| `pnpm db:studio`     | Prisma Studio                                                |
+| `pnpm screenshots`   | Capture `docs/screenshots/` from a running build             |
+| `pnpm backup`        | `pg_dump` into `backups/`, keeping the last 14               |
+| `pnpm restore`       | Restore a backup                                             |
+| `pnpm print:agent`   | Run the ESC/POS print agent                                  |
 
-**Requirements:** Node 20+, pnpm 9+, Docker.
+Stop the API before `pnpm db:reset`. PostgreSQL will otherwise keep prepared plans for tables that no
+longer exist and return `cached plan must not change result type` until the API reconnects.
 
-```bash
-pnpm install
-pnpm demo                     # setup + start: containers, migrations, demo data, API and web
-```
+## Tests
 
-`pnpm demo` runs the one-command setup and then `pnpm dev`. If you prefer the steps:
+- Unit (30): pricing, splits, state machines and the PromptPay payload with known check values.
+- API smoke: real HTTP with real cookies and CSRF headers. Duplicate orders stay single, duplicate
+  confirmations are rejected, cross-tenant reads fail, stock is deducted once, split totals keep the
+  satang, and the PromptPay payload parses as EMVCo with THB and the amount.
+- Web smoke (24): server-rendered pages for each role, including access denials.
+- Realtime: two sockets, one staff and one guest, assert order and kitchen events arrive and that
+  resync returns the missed events.
 
-```bash
-pnpm bootstrap                    # .env, containers, migrations, demo data (idempotent)
-pnpm dev                      # API :4100, web :3100
-```
+CI runs the whole set on every pull request against a real PostgreSQL service and the actual servers.
 
-`pnpm bootstrap` is safe to re-run: it reuses containers, applies only pending
-migrations and seeds only when the database is empty. To rebuild the demo from
-scratch: `pnpm db:reset && pnpm db:seed`.
+## Documentation
 
-Open:
+| Document                                                                     | Contents                                  |
+| ---------------------------------------------------------------------------- | ----------------------------------------- |
+| [ARCHITECTURE.md](ARCHITECTURE.md)                                           | System shape, tenancy, money, realtime    |
+| [DECISIONS.md](DECISIONS.md)                                                 | Fourteen decision records with trade-offs |
+| [PROJECT_STATUS.md](PROJECT_STATUS.md)                                       | What is implemented, partial or missing   |
+| [KNOWN_ISSUES.md](KNOWN_ISSUES.md)                                           | Known gaps and their intended fixes       |
+| [docs/api/endpoints.md](docs/api/endpoints.md)                               | Endpoint reference                        |
+| [docs/architecture/financial-rules.md](docs/architecture/financial-rules.md) | Rounding, tax, splits, refunds            |
+| [docs/security/security-model.md](docs/security/security-model.md)           | Threat model and controls                 |
+| [docs/operations/runbook.md](docs/operations/runbook.md)                     | Day-two operations                        |
+| [docs/deployment/production.md](docs/deployment/production.md)               | Production setup                          |
 
-- Staff app - <http://localhost:3100/login>
-- Guest menu - <http://localhost:3100/menu/demo-sathorn-t03-4f8c2a91>
-- API docs - <http://localhost:4100/api/docs>
-- Mailpit - <http://localhost:8125>
+## Using it from a phone
 
-> The demo seed uses deterministic QR tokens and one shared demo password. Both are development
-> only and must never be used in production.
+Both apps listen on all interfaces. On the same Wi-Fi, a phone can use the machine's LAN address.
 
-### Demo accounts
-
-Password for every account: `TableTap!2026`
-
-| Email                       | Role                  | Scope                                   |
-| --------------------------- | --------------------- | --------------------------------------- |
-| `owner@spicegarden.local`   | Owner                 | All three branches, full access         |
-| `manager@spicegarden.local` | Manager               | Sathorn + Ari only                      |
-| `cashier@spicegarden.local` | Cashier               | Bills, payments, refunds                |
-| `kitchen@spicegarden.local` | Kitchen               | Kitchen board only                      |
-| `waiter@spicegarden.local`  | Waiter                | Floor, serving, requests                |
-| `viewer@spicegarden.local`  | Viewer                | Read-only                               |
-| `owner@baanthai.local`      | Owner (second tenant) | Proves isolation                        |
-| `platform@tabletap.local`   | Platform admin        | No restaurant data without a membership |
-
-### PromptPay demo account
-
-All three Spice Garden branches are seeded with the same real PromptPay target: national ID
-`0000000000000`, account name **Demo PromptPay**. A QR from the guest menu or the POS is a genuine
-EMVCo payload that any Thai banking app reads; scanning and confirming it moves real money to that
-account. The app cannot verify arrival on its own without a bank/PSP contract, so a payment stays
-`AWAITING_CONFIRMATION` until a cashier confirms it - or, in the demo, until **Simulate provider
-paid** posts the same signed webhook a bank would.
-
-### Try the full flow
-
-1. Sign in as **owner**, open **Floor**, pick a free table, open a session (or scan its QR).
-2. Open the guest menu on a phone (or the seeded link), add dishes with modifiers, submit.
-3. Open **Kitchen** (or `/kitchen/display` on a tablet) - accept, start, mark ready.
-4. In the guest tab, watch the progress; call a waiter or request the bill.
-5. Staff see the request in **Guest requests**; acknowledge and resolve it.
-6. In **POS**, create the bill and split it if you like. Take a payment per share, or take PromptPay:
-   press **Generate QR** and show the real QR, then **Simulate provider paid** to send the signed
-   webhook the bank would send. Confirm, print the receipt, close the table.
-7. **Guest side:** open **Orders**, press **Pay with PromptPay**, and scan the QR with a banking app.
-   The bill becomes `PAID` on the guest screen within about five seconds of staff or the webhook
-   confirming it.
-8. **Overview**, **Analytics** and **Day close** now include that bill.
-
-The seeded demo already contains a table mid-service with a split, partially paid bill
-(one share PAID, one OPEN), an open bill request, an acknowledged waiter call, a low-stock
-alert, a sold-out dish and a historical refund - so every screen has something to show.
-
----
-
-## Use it from a phone (LAN)
-
-Both apps bind to all interfaces, so any device on the same Wi-Fi can use them. The current machine
-is `192.168.1.107`; substitute your own IP if it changes (`ipconfig`).
-
-1. Put the LAN addresses in `.env`:
+1. Put the address in `.env`:
 
    ```ini
    WEB_URL=http://192.168.1.107:3100
@@ -243,170 +290,19 @@ is `192.168.1.107`; substitute your own IP if it changes (`ipconfig`).
    NEXT_PUBLIC_API_URL=http://192.168.1.107:4100
    ```
 
-   The browser socket URL is derived from the page hostname (`lib/socket.ts`), so a phone opening
-   `http://192.168.1.107:3100` connects to `http://192.168.1.107:4100` automatically.
-
-2. Allow the ports once (Windows, Private network):
+2. Allow the two ports on the private network (Windows):
 
    ```powershell
    New-NetFirewallRule -DisplayName "TableTap Web 3100 (LAN)" -Direction Inbound -Protocol TCP -LocalPort 3100 -Action Allow -Profile Private
    New-NetFirewallRule -DisplayName "TableTap API 4100 (LAN)" -Direction Inbound -Protocol TCP -LocalPort 4100 -Action Allow -Profile Private
    ```
 
-3. Restart the API, then open on the phone:
+3. Restart the apps and open `http://192.168.1.107:3100/login` on the phone.
 
-   - Staff: `http://192.168.1.107:3100/login`
-   - Guest: `http://192.168.1.107:3100/menu/demo-sathorn-t03-4f8c2a91`
+Use `NODE_ENV=development` for plain HTTP on a LAN. Production cookies are `Secure` and a phone will
+not store them over HTTP, so put the app behind HTTPS.
 
-4. On the computer, open **Kitchen** or `/kitchen/display` and keep it visible. Scan a table QR from
-   **Floor â†’ Show QR**; the printed link already uses `WEB_URL`, so it opens on the phone.
+## License
 
-Notes:
-
-- Use the **development** API (`NODE_ENV=development`) for plain-HTTP LAN. Production sets `Secure`
-  cookies, which a phone will not store over HTTP â€” put it behind HTTPS.
-- The kitchen board shows **Live** when the socket is connected and falls back to polling if not.
-- Verify realtime yourself: `pnpm --filter @tabletap/web test:realtime` (connects two real sockets and
-  asserts order/kitchen events reach the staff and guest rooms).
-
----
-
-## Operations
-
-- **Health & metrics** â€” `GET /api/v1/health` (liveness), `GET /api/v1/health/ready` (PostgreSQL,
-  Redis, outbox backlog; `503` when degraded), `GET /api/v1/metrics` (Prometheus text).
-- **Backups** â€” `pnpm backup` writes a gzipped `pg_dump` to `backups/` and keeps the last 14;
-  `pnpm restore <file>` restores it. Detail: [docs/operations/backups.md](./docs/operations/backups.md).
-- **Monitoring** â€” scrape config, alert rules and log fields:
-  [docs/operations/monitoring.md](./docs/operations/monitoring.md).
-- **Printing** â€” `tools/print-agent` prints kitchen tickets and receipts on an 80 mm ESC/POS printer
-  over TCP, with Thai TIS-620 text: [tools/print-agent/README.md](./tools/print-agent/README.md).
-- **Realtime at scale** â€” with `REDIS_URL` set, the Socket.IO gateway attaches the Redis adapter, so
-  sockets on every API instance receive the same events.
-
----
-
-## Verification
-
-Commands below were executed against this repository and the seeded database.
-
-```bash
-pnpm --filter @tabletap/api test        # 30 unit tests
-pnpm --filter @tabletap/api typecheck
-pnpm --filter @tabletap/web build
-pnpm lint                               # ESLint 9 flat config, all packages
-pnpm --filter @tabletap/api test:integration   # requires API + seed (60+ checks)
-pnpm --filter @tabletap/web test:integration   # requires web + seed (24 checks)
-pnpm --filter @tabletap/web test:realtime      # two real sockets: staff + guest rooms
-pnpm screenshots                               # captures docs/screenshots/*
-pnpm backup                                    # pg_dump into backups/
-```
-
-> **Do not run `next build` while `next dev` is running.** Both use `apps/web/.next`; the build
-> replaces dev artifacts and the dev server then serves stale HTML whose CSS 404s. Stop dev first,
-> or use `pnpm build` then `pnpm --filter @tabletap/web start`.
-
-The integration suites assert behaviour, not just status codes: idempotent duplicate orders,
-cross-tenant rejection, CSRF rejection, duplicate payment confirmation, stock deduction, PromptPay
-payload CRC, split totals, permission denials.
-
----
-
-## Architecture at a glance
-
-```
-Browser â”€â”€â–º Next.js (server components) â”€â”€â”
-   â”‚                                      â”œâ”€â”€â–º REST /api/v1 â”€â”€â–º NestJS â”€â”€â–º PostgreSQL
-   â””â”€â”€â”€â”€â”€â”€â”€â”€â–º Socket.IO /realtime â”€â”€â”€â”€â”€â”€â”€â”€â”˜                      â”‚            (source of truth)
-                                                                 â”œâ”€â”€â–º Outbox dispatcher
-                                                                 â””â”€â”€â–º Audit log
-```
-
-- **PostgreSQL is authoritative.** Realtime events are notifications, never state.
-- **Transactional outbox:** business writes and their events commit together; a dispatcher publishes
-  them with a per-tenant sequence so clients can detect gaps and resync over REST.
-- **Money is `NUMERIC(12,2)` / `Prisma.Decimal`.** No floating point in any authoritative path.
-- **Pricing is server-side.** Client payloads carry item ids and quantities, never prices.
-- **Every tenant-scoped query is filtered by the authenticated membership.** Client-supplied tenant
-  or branch ids are validated, never trusted.
-
-Deeper: [ARCHITECTURE.md](./ARCHITECTURE.md) Â· [DECISIONS.md](./DECISIONS.md).
-
----
-
-## Financial rules (summary)
-
-1. `lineSubtotal = round2((unitPrice + modifiersPerUnit) Ã— quantity)`.
-2. Order discounts are allocated across lines proportionally; the remainder goes to the last line so
-   allocations sum exactly.
-3. Service charge is a percentage of net subtotal or a fixed amount capped at net subtotal.
-4. VAT-inclusive: `total = net + service`, tax extracted as `base Ã— rate / (100 + rate)`.
-   VAT-exclusive: `tax = base Ã— rate / 100`, added to the total.
-5. Tax is computed once on the taxable base and allocated to lines, so
-   `sum(line tax) = tax on the bill total`.
-6. A bill's totals are the sum of its linked orders' snapshotted totals â€” a later menu edit cannot
-   rewrite history.
-
-Full detail: [docs/architecture/financial-rules.md](./docs/architecture/financial-rules.md).
-
----
-
-## Payment limitations (important)
-
-- PromptPay QR generation is a **real EMVCo payload** validated with CRC-16/CCITT and known check
-  values. It requests money; it does **not** prove money arrived.
-- The payer's banking app shows the name registered at PromptPay for that ID, not the branch's
-  `promptPayName` field. Use the same name in **Settings** so the receipt, POS and bank screen agree.
-- Without a provider, a payment stays `AWAITING_CONFIRMATION` until an authorised cashier confirms
-  it. With `PAYMENT_WEBHOOK_SECRET` set, a provider can confirm it by signing a
-  `POST /api/v1/public/payments/provider/:provider/webhook` event with HMAC-SHA256; the event is
-  stored idempotently before the payment is settled.
-- Recording a refund **does not move money**. Staff must complete the transfer with their bank/PSP.
-- Receipts are sales receipts, not Thai e-Tax invoices. Fiscal certification is out of scope.
-
----
-
-## API
-
-REST under `/api/v1`, documented with Swagger at `/api/docs`. Highlights:
-
-```
-POST /auth/login | /auth/refresh | /auth/logout | /auth/register
-GET  /auth/me | /auth/sessions
-GET  /public/qr/:token            POST /public/qr/:token/session
-POST /public/customer-session/orders | /requests
-GET  /branches/:branchId/tables   POST /tables/:id/open-session | close-session | move | merge
-POST /tables/:id/qr | /qr/rotate  GET /tables/:id/qr/download?format=png|svg
-GET  /menu/items                  POST /menu/items | /menu/items/:id/availability
-GET  /orders                      POST /orders/:id/accept | preparing | ready | served | cancel
-GET  /kitchen/tickets             POST /kitchen/tickets/:id/accept | start | ready | reject
-POST /bills                       POST /bills/:id/split
-POST /payments                    POST /payments/:id/promptpay | confirm | refund
-GET  /inventory/ingredients       POST /inventory/receive | adjust | waste | count
-GET  /analytics/overview | /sales | /menu-performance | /operations
-GET  /platform/dashboard | /tenants | /system-health
-```
-
-See [docs/api/endpoints.md](./docs/api/endpoints.md).
-
----
-
-## Roadmap
-
-1. Promotion management UI + API (engine already applies codes).
-2. BullMQ worker for email, payment expiry, exports and alerting; Redis Socket.IO adapter.
-3. File storage adapter (S3/MinIO) with signed URLs and image processing.
-4. Notifications inbox and delivery channels (email/Telegram/Discord).
-5. Shift scheduling, clock-in/out and staff attribution reporting.
-6. Report exports (CSV/XLSX/PDF) via background jobs with authorised download URLs.
-7. Loyalty programme with consented customer identity.
-8. Optional AI summaries over tenant-scoped metrics.
-9. Verified PSP integration with webhook signature checks and reconciliation.
-
----
-
-## License / use
-
-Portfolio and evaluation project. No license is granted for commercial deployment. The demo
-credentials and deterministic QR tokens are intentionally public and must be replaced before any
-real use.
+No license is granted. The demo credentials, QR tokens and PromptPay account are development
+fixtures and must be replaced before any real use. If you want to reuse the code, ask first.
