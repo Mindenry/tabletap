@@ -144,6 +144,13 @@ export class PaymentsController {
     return this.payments.expirePayment(principal, id, actorFrom(req));
   }
 
+  @Post(':id/simulate-provider')
+  @RequirePermissions('payment.confirm')
+  @HttpCode(200)
+  simulateProvider(@CurrentStaff() principal: StaffPrincipal, @Param('id') id: string) {
+    return this.payments.simulateProvider(principal, id);
+  }
+
   @Post(':id/refund')
   @RequirePermissions('payment.refund')
   @HttpCode(200)

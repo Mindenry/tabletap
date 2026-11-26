@@ -77,6 +77,7 @@ for (const [path, name] of [
   ['/app/menu', '08-menu'],
   ['/app/promotions', '17-promotions'],
   ['/app/day-close', '14-day-close'],
+  ['/app/requests', '18-requests'],
 ]) {
   await goto(path);
   await shot(name);
@@ -169,6 +170,7 @@ const PUBLISH = {
   '15-bill.png': 'bill.png',
   '16-receipt.png': 'receipt.png',
   '17-promotions.png': 'promotions.png',
+  '18-requests.png': 'requests.png',
 };
 for (const [source, target] of Object.entries(PUBLISH)) {
   copyFileSync(join(OUT, source), join(DOCS, target));

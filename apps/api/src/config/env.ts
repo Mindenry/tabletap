@@ -85,7 +85,15 @@ export const env = {
   },
   /** Shared secret for the payment provider webhook (HMAC-SHA256 over the raw body). */
   get paymentWebhookSecret(): string | undefined {
-    return optional('PAYMENT_WEBHOOK_SECRET');
+    const configured = optional('PAYMENT_WEBHOOK_SECRET');
+    if (configured) return configured;
+    // The bundled demo provider signs with a fixed development secret so the flow
+    // works with zero configuration. Production must set a real secret.
+    return this.nodeEnv === 'production' ? undefined : 'dev-only-demo-webhook-secret';
+  },
+  /** Enables the "simulate provider" action in the POS (never in production by default). */
+  get paymentDemoEnabled(): boolean {
+    return optional('PAYMENT_DEMO_PROVIDER') === 'true' || this.nodeEnv !== 'production';
   },
   get throttleTtlMs(): number {
     return Number(optional('THROTTLE_TTL_MS') ?? 60_000);

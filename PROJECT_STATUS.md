@@ -17,7 +17,8 @@ complete because a route exists.
 | API integration smoke            | `pnpm --filter @tabletap/api test:integration`  | **All checks passed** (65+ incl. readiness, metrics, webhook) |
 | Web integration smoke            | `node apps/web/scripts/web-smoke.mjs`           | **All checks passed** (24)                                    |
 | Lint                             | `pnpm lint`                                     | Pass (ESLint 9 flat config, 4 packages)                       |
-| Production UI                    | `next build` + `next start`, Playwright         | **17 screenshots**, no console errors, CSS 200                |
+| Production UI                    | `next build` + `next start`, Playwright         | **18 screenshots**, no console errors, CSS 200                |
+| One-command bootstrap            | `pnpm bootstrap`                                | Containers, migrations and demo data; idempotent              |
 | Realtime events                  | `pnpm --filter @tabletap/web test:realtime`     | **All checks passed** (2 sockets, staff + guest rooms)        |
 | LAN browser                      | Playwright against `192.168.1.107:3100`         | Socket **Live**, 0 console errors, QR links use LAN           |
 
@@ -102,7 +103,11 @@ the brass rail.
 - **Audit** — searchable, paginated log with actor, action, resource, reason and request id.
 - **PWA** — manifest, icon, offline fallback page, service worker (shell only), offline banner.
 - **Demo data** — internally consistent: bills reference orders, payments reference bills, items
-  reference menu rows, analytics derive from them.
+  reference menu rows, analytics derive from them. The seed also leaves a table mid-service with a
+  split, partially paid bill (one share PAID), an open bill request, an acknowledged waiter call, a
+  pair of low-stock ingredients, one sold-out dish and a historical refund.
+- **Demo provider** — the POS settles a PromptPay payment with “Simulate provider paid”, which signs
+  and posts to the real webhook endpoint; no external account is needed in development.
 
 ## Partially implemented
 

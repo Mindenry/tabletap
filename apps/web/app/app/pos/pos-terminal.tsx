@@ -15,6 +15,7 @@ import {
   Split,
   Undo2,
   Users,
+  Wand2,
 } from 'lucide-react';
 import { clientApi, errorMessage } from '@/lib/api';
 import { cn, elapsedLabel, formatDateTime, formatTHB, plural } from '@/lib/utils';
@@ -204,6 +205,23 @@ export function PosTerminal({
         toast.success('Payment request created. Confirm once the money is in hand.');
       }
       await loadBill(bill.id);
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function simulateProvider() {
+    if (!paymentId || !bill) return;
+    setBusy(true);
+    try {
+      await clientApi(`/payments/${paymentId}/simulate-provider`, { method: 'POST' });
+      toast.success('Provider webhook confirmed the payment');
+      setPaymentOpen(false);
+      setPromptPay(null);
+      await loadBill(bill.id);
+      router.refresh();
     } catch (error) {
       toast.error(errorMessage(error));
     } finally {
@@ -700,7 +718,8 @@ export function PosTerminal({
               <div className="flex flex-col items-center gap-2 rounded-md border border-line bg-paper/60 p-3">
                 <img src={promptPay.dataUrl} alt="PromptPay QR" className="h-44 w-44 rounded bg-white p-1" />
                 <p className="text-[11px] text-muted">
-                  Ask the guest to scan, then confirm once you see the transfer.
+                  Ask the guest to scan, then confirm once you see the transfer. In the demo, “Simulate
+                  provider paid” sends a signed webhook as if the bank had confirmed it.
                 </p>
                 <code className="max-w-full truncate text-[10px] text-muted">{promptPay.payload}</code>
               </div>
@@ -720,9 +739,16 @@ export function PosTerminal({
                 {method === 'PROMPTPAY' ? 'Generate QR' : 'Create payment'}
               </Button>
             ) : (
-              <Button onClick={confirmPayment} loading={busy}>
-                <Check className="h-4 w-4" /> Confirm received
-              </Button>
+              <>
+                {promptPay ? (
+                  <Button variant="secondary" onClick={simulateProvider} loading={busy}>
+                    <Wand2 className="h-4 w-4" /> Simulate provider paid
+                  </Button>
+                ) : null}
+                <Button onClick={confirmPayment} loading={busy}>
+                  <Check className="h-4 w-4" /> Confirm received
+                </Button>
+              </>
             )}
           </DialogFooter>
         </DialogContent>

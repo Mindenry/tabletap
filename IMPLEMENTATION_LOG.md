@@ -455,3 +455,48 @@ watched. The audit found presentation bugs rather than broken flows; the fixes b
   day close, paged lists).
 - Web smoke → 24/24; realtime → all checks (Redis adapter active).
 - `pnpm --filter @tabletap/web build` passes; the database was reseeded after the settlement tests.
+
+## 2026-11-26 — Session 10 (turnkey demo)
+
+The brief was “working, with data, without configuring a webhook”. This session removes the last
+manual step and fills every screen with a believable service in progress.
+
+### Zero-configuration provider payment
+
+- `env.paymentWebhookSecret` falls back to a fixed development secret outside production, so the
+  webhook works with no `.env` edit. Production still requires a real secret.
+- `POST /payments/:id/simulate-provider` signs a webhook body with that secret and calls the real
+  public webhook endpoint over HTTP, so the exact production path (signature, idempotent event,
+  locked settlement) is exercised. Disabled in production unless `PAYMENT_DEMO_PROVIDER=true`.
+- The POS PromptPay dialog now offers **Simulate provider paid** next to **Confirm received**.
+- Verified: payment `PENDING` → simulate → `confirmed`, bill `PAID`, payment `PAID`, `confirmedAt`
+  set.
+
+### Seed now contains a live scene
+
+- A second open table (02) with a served order and a **split, partially paid bill**: Guest 1
+  `PAID` (PromptPay, splitId), Guest 2 `OPEN`; the table is `BILL_REQUESTED` and has an open bill
+  request.
+- Table 01 has an open water request and an acknowledged waiter call (claimed by Kanya).
+- Forty resolved historical requests sit behind the Resolved/All tabs.
+- Coconut milk and prawns are below minimum, so the dashboard and inventory show real low stock.
+- Mango sticky rice is sold out at Sathorn, exercising the guest-menu sold-out state.
+- One historical payment carries a 50 THB refund.
+
+### Fixed while seeding
+
+- `GET /table-requests?status=ALL` returned only active requests. It now returns every status,
+  which is what the “All” tab promises.
+
+### Turnkey start
+
+- `scripts/setup.mjs` + `pnpm bootstrap`: creates `.env` from the example if missing, starts
+  PostgreSQL/Redis/Mailpit, waits for readiness, applies pending migrations, and seeds only when the
+  database has no tenants. `pnpm demo` runs it and then starts both apps.
+- `.env.example` now ships the development webhook secret and the demo-provider flag.
+
+### Verification
+
+- Bootstrap run twice: second run reuses containers and skips the seed.
+- API smoke on a clean seed → all checks; web smoke 24/24; unit 30/30.
+- 18 screenshots, no console errors (requests screen added to the gallery).

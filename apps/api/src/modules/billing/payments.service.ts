@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import QRCode from 'qrcode';
+import { createHmac } from 'node:crypto';
 import {
   buildPromptPayPayload,
   canTransition,
@@ -22,6 +23,7 @@ import { BillingService } from './billing.service';
 import { D, moneyString } from '../../common/money';
 import { randomCode } from '../../common/crypto';
 import { ActorMeta } from '../../common/actor';
+import { env } from '../../config/env';
 import type { StaffPrincipal } from '../auth/principal';
 import type { ConfirmPaymentDto, CreatePaymentDto, RefundDto } from './billing.dto';
 
@@ -516,6 +518,62 @@ export class PaymentsService {
       billStatus: result.bill.status,
       fullyPaid: result.fullyPaid,
     };
+  }
+
+  /**
+   * Demo provider: signs a webhook with the configured secret and calls the
+   * public webhook endpoint over HTTP, so the exact production path is
+   * exercised without an external provider. Disabled in production unless
+   * PAYMENT_DEMO_PROVIDER=true.
+   */
+  async simulateProvider(principal: StaffPrincipal, paymentId: string) {
+    if (!env.paymentDemoEnabled) {
+      throw new ForbiddenException({
+        message: 'The demo provider is disabled in this environment',
+        code: 'DEMO_PROVIDER_DISABLED',
+      });
+    }
+    const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
+    if (!payment || payment.tenantId !== principal.tenantId) {
+      throw new NotFoundException({ message: 'Payment not found', code: 'NOT_FOUND' });
+    }
+    await this.branches.load(principal, payment.branchId);
+    if (!['PENDING', 'AWAITING_CONFIRMATION'].includes(payment.status)) {
+      throw new ConflictException({
+        message: `A ${payment.status} payment cannot be settled by a provider`,
+        code: 'INVALID_TRANSITION',
+      });
+    }
+    const secret = env.paymentWebhookSecret;
+    if (!secret) {
+      throw new ConflictException({
+        message: 'No webhook secret is configured',
+        code: 'PAYMENT_WEBHOOK_NOT_CONFIGURED',
+      });
+    }
+
+    const body = JSON.stringify({
+      eventId: `demo-${payment.id}-${Date.now()}`,
+      reference: payment.reference,
+      status: 'PAID',
+      amount: moneyString(payment.amount),
+    });
+    const signature = createHmac('sha256', secret).update(body).digest('hex');
+
+    const response = await fetch(`${env.apiUrl}/api/v1/public/payments/provider/demo/webhook`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-provider-signature': signature },
+      body,
+    });
+    const text = await response.text();
+    if (!response.ok) {
+      throw new ConflictException({
+        message: 'The demo provider webhook was rejected',
+        code: 'DEMO_PROVIDER_REJECTED',
+        details: text.slice(0, 300),
+      });
+    }
+    return { simulated: true, ...JSON.parse(text) };
   }
 
   async expirePayment(principal: StaffPrincipal, paymentId: string, actor: ActorMeta) {

@@ -826,9 +826,11 @@ export class FloorService {
       where: {
         tenantId: principal.tenantId,
         branchId,
-        ...(status && status !== 'ALL'
-          ? { status: status as never }
-          : { status: { in: ['OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS'] } }),
+        ...(status === 'ALL'
+          ? {}
+          : status
+            ? { status: status as never }
+            : { status: { in: ['OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS'] } }),
       },
       include: {
         table: { select: { id: true, number: true, name: true } },

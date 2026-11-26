@@ -1849,6 +1849,275 @@ async function main() {
     });
   }
 
+  // A second live table with a split, partially paid bill so the POS, the check
+  // and the day close all show a share that is already settled.
+  const splitTable = sathornTables[1]!;
+  const splitOpenedAt = new Date(Date.now() - 34 * 60 * 1000);
+  const splitSession = await prisma.tableSession.create({
+    data: {
+      tenantId: spiceGarden.tenant.id,
+      branchId: sathorn.id,
+      tableId: splitTable.id,
+      status: 'OPEN',
+      guestCount: 3,
+      openedAt: splitOpenedAt,
+      openedById: waiter.id,
+    },
+  });
+  await prisma.diningTable.update({ where: { id: splitTable.id }, data: { status: 'BILL_REQUESTED' } });
+
+  const splitLines = [
+    { item: menu.items.find((item) => item.nameEn === 'Green Curry')!, quantity: 1 },
+    { item: menu.items.find((item) => item.nameEn === 'Crispy Spring Rolls')!, quantity: 2 },
+    { item: menu.items.find((item) => item.nameEn === 'Thai Iced Tea')!, quantity: 3 },
+  ];
+  const splitPricing = priceOrder(
+    splitLines.map((line) => ({
+      unitPrice: new Prisma.Decimal(line.item.price),
+      modifiersPerUnit: new Prisma.Decimal(0),
+      quantity: line.quantity,
+    })),
+    {
+      vatRate: sathorn.vatRate,
+      vatInclusive: sathorn.vatInclusive,
+      serviceChargeType: sathorn.serviceChargeType as 'PERCENT' | 'FIXED',
+      serviceChargeValue: sathorn.serviceChargeValue,
+    },
+  );
+  const splitOrderAt = new Date(Date.now() - 30 * 60 * 1000);
+  const splitOrder = await prisma.order.create({
+    data: {
+      tenantId: spiceGarden.tenant.id,
+      branchId: sathorn.id,
+      tableId: splitTable.id,
+      tableSessionId: splitSession.id,
+      number: await numbers.next(prisma, {
+        tenantId: spiceGarden.tenant.id,
+        branchId: sathorn.id,
+        branchCode: sathorn.code,
+        type: 'ORDER',
+        date: splitOrderAt,
+      }),
+      status: 'SERVED',
+      source: 'STAFF_POS',
+      subtotal: splitPricing.subtotal,
+      discountTotal: splitPricing.discountTotal,
+      serviceCharge: splitPricing.serviceCharge,
+      taxTotal: splitPricing.taxTotal,
+      total: splitPricing.total,
+      currency: 'THB',
+      createdAt: splitOrderAt,
+      acceptedAt: new Date(splitOrderAt.getTime() + 2 * 60 * 1000),
+      readyAt: new Date(splitOrderAt.getTime() + 16 * 60 * 1000),
+      servedAt: new Date(splitOrderAt.getTime() + 19 * 60 * 1000),
+      createdById: waiter.id,
+    },
+  });
+  const splitOrderItems = [];
+  for (const [index, line] of splitLines.entries()) {
+    const price = splitPricing.lines[index]!;
+    splitOrderItems.push(
+      await prisma.orderItem.create({
+        data: {
+          orderId: splitOrder.id,
+          menuItemId: line.item.id,
+          nameSnapshot: line.item.name,
+          quantity: line.quantity,
+          unitPrice: new Prisma.Decimal(line.item.price),
+          modifiersTotal: new Prisma.Decimal(0),
+          lineSubtotal: price.lineSubtotal,
+          lineDiscount: price.lineDiscount,
+          lineTax: price.lineTax,
+          lineTotal: price.lineTotal,
+          status: 'SERVED',
+          createdAt: splitOrderAt,
+        },
+      }),
+    );
+  }
+
+  const splitBillNumber = await numbers.next(prisma, {
+    tenantId: spiceGarden.tenant.id,
+    branchId: sathorn.id,
+    branchCode: sathorn.code,
+    type: 'BILL',
+    date: splitOrderAt,
+  });
+  const firstShare = splitPricing.total
+    .dividedBy(2)
+    .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+  const secondShare = splitPricing.total.minus(firstShare);
+  const splitBill = await prisma.bill.create({
+    data: {
+      tenantId: spiceGarden.tenant.id,
+      branchId: sathorn.id,
+      tableSessionId: splitSession.id,
+      number: splitBillNumber,
+      status: 'PARTIALLY_PAID',
+      subtotal: splitPricing.subtotal,
+      discountTotal: splitPricing.discountTotal,
+      serviceCharge: splitPricing.serviceCharge,
+      taxTotal: splitPricing.taxTotal,
+      total: splitPricing.total,
+      paidTotal: firstShare,
+      currency: 'THB',
+      taxRate: sathorn.vatRate,
+      taxInclusive: sathorn.vatInclusive,
+      serviceChargeType: sathorn.serviceChargeType,
+      serviceChargeValue: sathorn.serviceChargeValue,
+      createdById: cashier.id,
+      createdAt: splitOrderAt,
+      openedAt: splitOpenedAt,
+    },
+  });
+  await prisma.billOrder.create({ data: { billId: splitBill.id, orderId: splitOrder.id } });
+  for (const orderItem of splitOrderItems) {
+    await prisma.billItem.create({
+      data: {
+        billId: splitBill.id,
+        orderItemId: orderItem.id,
+        nameSnapshot: orderItem.nameSnapshot,
+        variantName: orderItem.variantName,
+        quantity: orderItem.quantity,
+        unitPrice: orderItem.unitPrice,
+        modifiersTotal: orderItem.modifiersTotal,
+        lineSubtotal: orderItem.lineSubtotal,
+        lineDiscount: orderItem.lineDiscount,
+        lineTax: orderItem.lineTax,
+        lineTotal: orderItem.lineTotal,
+      },
+    });
+  }
+  const paidShare = await prisma.billSplit.create({
+    data: {
+      billId: splitBill.id,
+      label: 'Guest 1',
+      amount: firstShare,
+      status: 'PAID',
+      paidAt: new Date(Date.now() - 8 * 60 * 1000),
+    },
+  });
+  await prisma.billSplit.create({
+    data: { billId: splitBill.id, label: 'Guest 2', amount: secondShare, status: 'OPEN' },
+  });
+  await prisma.payment.create({
+    data: {
+      tenantId: spiceGarden.tenant.id,
+      branchId: sathorn.id,
+      billId: splitBill.id,
+      method: 'PROMPTPAY',
+      status: 'PAID',
+      amount: firstShare,
+      amountPaid: firstShare,
+      currency: 'THB',
+      reference: `PAY-${splitBillNumber}`,
+      provider: 'PROMPTPAY',
+      splitId: paidShare.id,
+      confirmedById: cashier.id,
+      confirmedAt: new Date(Date.now() - 8 * 60 * 1000),
+      createdAt: new Date(Date.now() - 9 * 60 * 1000),
+    },
+  });
+  await prisma.tableRequest.create({
+    data: {
+      tenantId: spiceGarden.tenant.id,
+      branchId: sathorn.id,
+      tableId: splitTable.id,
+      tableSessionId: splitSession.id,
+      type: 'REQUEST_BILL',
+      status: 'OPEN',
+      createdAt: new Date(Date.now() - 3 * 60 * 1000),
+    },
+  });
+
+  // Requests for the first live table: one open, one claimed, one resolved.
+  await prisma.tableRequest.createMany({
+    data: [
+      {
+        tenantId: spiceGarden.tenant.id,
+        branchId: sathorn.id,
+        tableId: liveTable.id,
+        tableSessionId: liveSession.id,
+        type: 'REQUEST_WATER',
+        status: 'OPEN',
+        createdAt: new Date(Date.now() - 4 * 60 * 1000),
+      },
+      {
+        tenantId: spiceGarden.tenant.id,
+        branchId: sathorn.id,
+        tableId: liveTable.id,
+        tableSessionId: liveSession.id,
+        type: 'CALL_WAITER',
+        status: 'ACKNOWLEDGED',
+        assignedToId: waiter.id,
+        createdAt: new Date(Date.now() - 9 * 60 * 1000),
+        acknowledgedAt: new Date(Date.now() - 7 * 60 * 1000),
+      },
+      {
+        tenantId: spiceGarden.tenant.id,
+        branchId: sathorn.id,
+        tableId: liveTable.id,
+        tableSessionId: liveSession.id,
+        type: 'REQUEST_UTENSILS',
+        status: 'RESOLVED',
+        assignedToId: waiter.id,
+        createdAt: new Date(Date.now() - 24 * 60 * 1000),
+        acknowledgedAt: new Date(Date.now() - 22 * 60 * 1000),
+        resolvedAt: new Date(Date.now() - 19 * 60 * 1000),
+        resolutionNote: 'Delivered to the table',
+      },
+    ],
+  });
+
+  // Two ingredients below their minimum, so the dashboard and inventory show a
+  // real low-stock alert out of the box.
+  await prisma.ingredient.updateMany({
+    where: { branchId: sathorn.id, sku: { in: ['COCONUT', 'PRAWN'] } },
+    data: { currentStock: new Prisma.Decimal(2) },
+  });
+
+  // One dish sold out at Sathorn: the guest menu renders its sold-out state.
+  const soldOutItem = menu.items.find((item) => item.nameEn === 'Mango Sticky Rice');
+  if (soldOutItem) {
+    await prisma.menuItemAvailability.upsert({
+      where: { menuItemId_branchId: { menuItemId: soldOutItem.id, branchId: sathorn.id } },
+      create: { menuItemId: soldOutItem.id, branchId: sathorn.id, isAvailable: false },
+      update: { isAvailable: false },
+    });
+  }
+
+  // One historical refund so the refund flow has data to display.
+  const refundTarget = await prisma.payment.findFirst({
+    where: {
+      tenantId: spiceGarden.tenant.id,
+      branchId: sathorn.id,
+      status: 'PAID',
+      refunds: { none: {} },
+      confirmedAt: { lt: new Date(Date.now() - 3 * 86400000) },
+    },
+    orderBy: { confirmedAt: 'asc' },
+  });
+  if (refundTarget) {
+    await prisma.refund.create({
+      data: {
+        paymentId: refundTarget.id,
+        amount: new Prisma.Decimal(50),
+        reason: 'Item not as described',
+        authorizedById: owner.id,
+        reference: `RFD-${refundTarget.reference}`,
+        createdAt: new Date(refundTarget.confirmedAt!.getTime() + 40 * 60 * 1000),
+      },
+    });
+    await prisma.payment.update({
+      where: { id: refundTarget.id },
+      data: { status: 'PARTIALLY_REFUNDED' },
+    });
+    await prisma.bill.update({
+      where: { id: refundTarget.billId },
+      data: { status: 'PARTIALLY_REFUNDED' },
+    });
+  }
+
   // Shifts for today.
   for (const user of [cashier, kitchen, waiter]) {
     const shift = await prisma.staffShift.create({

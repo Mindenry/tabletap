@@ -1,6 +1,6 @@
-# TableTap
+﻿# TableTap
 
-**Restaurant ordering, kitchen, POS and operations — one connected system.**
+**Restaurant ordering, kitchen, POS and operations â€” one connected system.**
 
 TableTap is a multi-tenant restaurant platform built for Thai restaurants: QR ordering at the
 table, a station-routed kitchen display, a cashier POS with PromptPay, bill snapshots, inventory
@@ -11,18 +11,18 @@ aggregate over persisted rows. The demo dataset is generated from actual orders,
 payments.
 
 ```
-Guest scans QR ──► Menu & cart ──► Order (server priced, idempotent)
-                                        │
-                                        ▼
+Guest scans QR â”€â”€â–º Menu & cart â”€â”€â–º Order (server priced, idempotent)
+                                        â”‚
+                                        â–¼
                               Kitchen tickets by station
-                                        │
-                    accept → start → item ready → served
-                                        │
-                                        ▼
-                       Bill snapshot ──► Payment (cash / PromptPay)
-                                        │
-                                        ▼
-                    Receipt · inventory movements · analytics · audit log
+                                        â”‚
+                    accept â†’ start â†’ item ready â†’ served
+                                        â”‚
+                                        â–¼
+                       Bill snapshot â”€â”€â–º Payment (cash / PromptPay)
+                                        â”‚
+                                        â–¼
+                    Receipt Â· inventory movements Â· analytics Â· audit log
 ```
 
 ---
@@ -45,7 +45,7 @@ Guest scans QR ──► Menu & cart ──► Order (server priced, idempotent)
 | ---------------------------------- | ---------------------------------------- |
 | ![Bill](docs/screenshots/bill.png) | ![Receipt](docs/screenshots/receipt.png) |
 
-| Guest menu — phone                                    | Staff overview — phone                           |
+| Guest menu â€” phone                                  | Staff overview â€” phone                         |
 | ----------------------------------------------------- | ------------------------------------------------ |
 | ![Guest menu](docs/screenshots/guest-menu-mobile.png) | ![Mobile](docs/screenshots/dashboard-mobile.png) |
 
@@ -53,7 +53,7 @@ Guest scans QR ──► Menu & cart ──► Order (server priced, idempotent)
 | ---------------------------------------- | -------------------------------------- |
 | ![Landing](docs/screenshots/landing.png) | ![Sign in](docs/screenshots/login.png) |
 
-| Guest menu — desktop                           | Guest menu — dish sheet                             |
+| Guest menu â€” desktop                         | Guest menu â€” dish sheet                           |
 | ---------------------------------------------- | --------------------------------------------------- |
 | ![Guest menu](docs/screenshots/guest-menu.png) | ![Dish sheet](docs/screenshots/guest-menu-dish.png) |
 
@@ -61,9 +61,9 @@ Guest scans QR ──► Menu & cart ──► Order (server priced, idempotent)
 | -------------------------------------------- | ---------------------------------------------- |
 | ![Day close](docs/screenshots/day-close.png) | ![Promotions](docs/screenshots/promotions.png) |
 
-| Platform administration                    |
-| ------------------------------------------ |
-| ![Platform](docs/screenshots/platform.png) |
+| Guest requests                             | Platform administration                    |
+| ------------------------------------------ | ------------------------------------------ |
+| ![Requests](docs/screenshots/requests.png) | ![Platform](docs/screenshots/platform.png) |
 
 Screenshots are captured from the production build with Playwright
 (`pnpm screenshots`) against the seeded demo, not mocked up. The script writes
@@ -73,26 +73,26 @@ Screenshots are captured from the production build with Playwright
 
 ## Design system
 
-The interface reads as a **service ledger**: the artefacts a restaurant already trusts — the
-printed check, the reservation book, the ticket on the pass, the brass rail — rebuilt as a screen
+The interface reads as a **service ledger**: the artefacts a restaurant already trusts â€” the
+printed check, the reservation book, the ticket on the pass, the brass rail â€” rebuilt as a screen
 system. Type carries the hierarchy; colour is reserved for state and money.
 
-- **Type** — Fraunces (display) and IBM Plex Sans Thai (UI, Latin + Thai subsets), both
+- **Type** â€” Fraunces (display) and IBM Plex Sans Thai (UI, Latin + Thai subsets), both
   **self-hosted** in `apps/web/app/fonts` so builds never depend on a network fetch. Money uses
-  tabular Plex figures so the `฿` glyph is correct at every size.
-- **Palette** — porcelain paper `#f3ede2`, ink `#16130e`, oxblood `#7a3030`, brass `#9a7733`,
+  tabular Plex figures so the `à¸¿` glyph is correct at every size.
+- **Palette** â€” porcelain paper `#f3ede2`, ink `#16130e`, oxblood `#7a3030`, brass `#9a7733`,
   sage `#56674e`, and a near-black `#12100b` for the staff chrome. No purple, no gradient text,
   no glow, no decorative grain.
-- **Surfaces** — one declaration per element: a hairline border _or_ a shadow, never both. Radii
+- **Surfaces** â€” one declaration per element: a hairline border _or_ a shadow, never both. Radii
   stay between 3px (stamps) and 18px (sheets). Cards are border-only; depth appears only on
   overlays and modals.
-- **Layout** — a fixed staff sidebar, a live service rail (tenant · branch · section · clock), a
+- **Layout** â€” a fixed staff sidebar, a live service rail (tenant Â· branch Â· section Â· clock), a
   horizontal metric band instead of KPI cards, a positioned floor plan drawn from persisted
   coordinates, and a two-column guest ordering surface: the menu on the left, a sticky table rail
   carrying the running order and floor requests on the right.
-- **Motion** — scroll reveals via IntersectionObserver, count-up figures, page transitions,
+- **Motion** â€” scroll reveals via IntersectionObserver, count-up figures, page transitions,
   dialog and sheet entrances. All motion is disabled under `prefers-reduced-motion`.
-- **Components** — buttons, inputs, dialogs, tabs, tables, status stamps, metric band,
+- **Components** â€” buttons, inputs, dialogs, tabs, tables, status stamps, metric band,
   empty/skeleton/error states, toast notifications, and permission-aware navigation.
 
 ---
@@ -123,19 +123,19 @@ system. Type carries the hierarchy; colour is reserved for state and money.
 | File uploads                              | **Not implemented** | Menu images are URL fields; no storage adapter yet                                                           |
 | AI assistant, report exports              | **Not implemented** | Deliberately deferred; see roadmap                                                                           |
 
-Full detail: [PROJECT_STATUS.md](./PROJECT_STATUS.md) · [KNOWN_ISSUES.md](./KNOWN_ISSUES.md).
+Full detail: [PROJECT_STATUS.md](./PROJECT_STATUS.md) Â· [KNOWN_ISSUES.md](./KNOWN_ISSUES.md).
 
 ---
 
 ## Technology
 
-- **Frontend** — Next.js 15 (App Router), React 19, TypeScript strict, Tailwind CSS v4, Radix UI
+- **Frontend** â€” Next.js 15 (App Router), React 19, TypeScript strict, Tailwind CSS v4, Radix UI
   primitives, TanStack Query available, Recharts, Socket.IO client, Zod.
-- **Backend** — NestJS 11, Prisma 6, PostgreSQL 16, Socket.IO, Argon2id, class-validator,
+- **Backend** â€” NestJS 11, Prisma 6, PostgreSQL 16, Socket.IO, Argon2id, class-validator,
   Swagger/OpenAPI, Pino-style structured request logs.
-- **Infrastructure** — pnpm workspaces + Turborepo, Docker Compose (Postgres, Redis, Mailpit,
+- **Infrastructure** â€” pnpm workspaces + Turborepo, Docker Compose (Postgres, Redis, Mailpit,
   optional MinIO), GitHub Actions.
-- **Testing** — Vitest unit suite, HTTP integration smoke suites for the API and the web app.
+- **Testing** â€” Vitest unit suite, HTTP integration smoke suites for the API and the web app.
 
 ---
 
@@ -160,20 +160,27 @@ tests/load/     k6 scripts (provided, not executed here)
 **Requirements:** Node 20+, pnpm 9+, Docker.
 
 ```bash
-cp .env.example .env          # then adjust if needed
 pnpm install
-docker compose up -d postgres redis mailpit
-pnpm db:migrate               # applies prisma/migrations
-pnpm db:seed                  # two restaurants + 30 days of trading history
+pnpm demo                     # setup + start: containers, migrations, demo data, API and web
+```
+
+`pnpm demo` runs the one-command setup and then `pnpm dev`. If you prefer the steps:
+
+```bash
+pnpm bootstrap                    # .env, containers, migrations, demo data (idempotent)
 pnpm dev                      # API :4100, web :3100
 ```
 
+`pnpm bootstrap` is safe to re-run: it reuses containers, applies only pending
+migrations and seeds only when the database is empty. To rebuild the demo from
+scratch: `pnpm db:reset && pnpm db:seed`.
+
 Open:
 
-- Staff app — <http://localhost:3100/login>
-- Guest menu — <http://localhost:3100/menu/demo-sathorn-t03-4f8c2a91>
-- API docs — <http://localhost:4100/api/docs>
-- Mailpit — <http://localhost:8125>
+- Staff app - <http://localhost:3100/login>
+- Guest menu - <http://localhost:3100/menu/demo-sathorn-t03-4f8c2a91>
+- API docs - <http://localhost:4100/api/docs>
+- Mailpit - <http://localhost:8125>
 
 > The demo seed uses deterministic QR tokens and one shared demo password. Both are development
 > only and must never be used in production.
@@ -197,12 +204,17 @@ Password for every account: `TableTap!2026`
 
 1. Sign in as **owner**, open **Floor**, pick a free table, open a session (or scan its QR).
 2. Open the guest menu on a phone (or the seeded link), add dishes with modifiers, submit.
-3. Open **Kitchen** (or `/kitchen/display` on a tablet) — accept, start, mark ready.
+3. Open **Kitchen** (or `/kitchen/display` on a tablet) - accept, start, mark ready.
 4. In the guest tab, watch the progress; call a waiter or request the bill.
 5. Staff see the request in **Guest requests**; acknowledge and resolve it.
-6. In **POS**, create the bill, split it, take a PromptPay payment, confirm it, print the receipt,
-   close the table.
-7. **Overview** and **Analytics** now include that bill.
+6. In **POS**, create the bill, split it, take a payment per share, or take PromptPay: press
+   **Generate QR**, then **Simulate provider paid** to send the signed webhook the bank would send.
+   Confirm, print the receipt, close the table.
+7. **Overview**, **Analytics** and **Day close** now include that bill.
+
+The seeded demo already contains a table mid-service with a split, partially paid bill
+(one share PAID, one OPEN), an open bill request, an acknowledged waiter call, a low-stock
+alert, a sold-out dish and a historical refund - so every screen has something to show.
 
 ---
 
@@ -235,12 +247,12 @@ is `192.168.1.107`; substitute your own IP if it changes (`ipconfig`).
    - Guest: `http://192.168.1.107:3100/menu/demo-sathorn-t03-4f8c2a91`
 
 4. On the computer, open **Kitchen** or `/kitchen/display` and keep it visible. Scan a table QR from
-   **Floor → Show QR**; the printed link already uses `WEB_URL`, so it opens on the phone.
+   **Floor â†’ Show QR**; the printed link already uses `WEB_URL`, so it opens on the phone.
 
 Notes:
 
 - Use the **development** API (`NODE_ENV=development`) for plain-HTTP LAN. Production sets `Secure`
-  cookies, which a phone will not store over HTTP — put it behind HTTPS.
+  cookies, which a phone will not store over HTTP â€” put it behind HTTPS.
 - The kitchen board shows **Live** when the socket is connected and falls back to polling if not.
 - Verify realtime yourself: `pnpm --filter @tabletap/web test:realtime` (connects two real sockets and
   asserts order/kitchen events reach the staff and guest rooms).
@@ -249,15 +261,15 @@ Notes:
 
 ## Operations
 
-- **Health & metrics** — `GET /api/v1/health` (liveness), `GET /api/v1/health/ready` (PostgreSQL,
+- **Health & metrics** â€” `GET /api/v1/health` (liveness), `GET /api/v1/health/ready` (PostgreSQL,
   Redis, outbox backlog; `503` when degraded), `GET /api/v1/metrics` (Prometheus text).
-- **Backups** — `pnpm backup` writes a gzipped `pg_dump` to `backups/` and keeps the last 14;
+- **Backups** â€” `pnpm backup` writes a gzipped `pg_dump` to `backups/` and keeps the last 14;
   `pnpm restore <file>` restores it. Detail: [docs/operations/backups.md](./docs/operations/backups.md).
-- **Monitoring** — scrape config, alert rules and log fields:
+- **Monitoring** â€” scrape config, alert rules and log fields:
   [docs/operations/monitoring.md](./docs/operations/monitoring.md).
-- **Printing** — `tools/print-agent` prints kitchen tickets and receipts on an 80 mm ESC/POS printer
+- **Printing** â€” `tools/print-agent` prints kitchen tickets and receipts on an 80 mm ESC/POS printer
   over TCP, with Thai TIS-620 text: [tools/print-agent/README.md](./tools/print-agent/README.md).
-- **Realtime at scale** — with `REDIS_URL` set, the Socket.IO gateway attaches the Redis adapter, so
+- **Realtime at scale** â€” with `REDIS_URL` set, the Socket.IO gateway attaches the Redis adapter, so
   sockets on every API instance receive the same events.
 
 ---
@@ -291,11 +303,11 @@ payload CRC, split totals, permission denials.
 ## Architecture at a glance
 
 ```
-Browser ──► Next.js (server components) ──┐
-   │                                      ├──► REST /api/v1 ──► NestJS ──► PostgreSQL
-   └────────► Socket.IO /realtime ────────┘                      │            (source of truth)
-                                                                 ├──► Outbox dispatcher
-                                                                 └──► Audit log
+Browser â”€â”€â–º Next.js (server components) â”€â”€â”
+   â”‚                                      â”œâ”€â”€â–º REST /api/v1 â”€â”€â–º NestJS â”€â”€â–º PostgreSQL
+   â””â”€â”€â”€â”€â”€â”€â”€â”€â–º Socket.IO /realtime â”€â”€â”€â”€â”€â”€â”€â”€â”˜                      â”‚            (source of truth)
+                                                                 â”œâ”€â”€â–º Outbox dispatcher
+                                                                 â””â”€â”€â–º Audit log
 ```
 
 - **PostgreSQL is authoritative.** Realtime events are notifications, never state.
@@ -306,21 +318,21 @@ Browser ──► Next.js (server components) ──┐
 - **Every tenant-scoped query is filtered by the authenticated membership.** Client-supplied tenant
   or branch ids are validated, never trusted.
 
-Deeper: [ARCHITECTURE.md](./ARCHITECTURE.md) · [DECISIONS.md](./DECISIONS.md).
+Deeper: [ARCHITECTURE.md](./ARCHITECTURE.md) Â· [DECISIONS.md](./DECISIONS.md).
 
 ---
 
 ## Financial rules (summary)
 
-1. `lineSubtotal = round2((unitPrice + modifiersPerUnit) × quantity)`.
+1. `lineSubtotal = round2((unitPrice + modifiersPerUnit) Ã— quantity)`.
 2. Order discounts are allocated across lines proportionally; the remainder goes to the last line so
    allocations sum exactly.
 3. Service charge is a percentage of net subtotal or a fixed amount capped at net subtotal.
-4. VAT-inclusive: `total = net + service`, tax extracted as `base × rate / (100 + rate)`.
-   VAT-exclusive: `tax = base × rate / 100`, added to the total.
+4. VAT-inclusive: `total = net + service`, tax extracted as `base Ã— rate / (100 + rate)`.
+   VAT-exclusive: `tax = base Ã— rate / 100`, added to the total.
 5. Tax is computed once on the taxable base and allocated to lines, so
    `sum(line tax) = tax on the bill total`.
-6. A bill's totals are the sum of its linked orders' snapshotted totals — a later menu edit cannot
+6. A bill's totals are the sum of its linked orders' snapshotted totals â€” a later menu edit cannot
    rewrite history.
 
 Full detail: [docs/architecture/financial-rules.md](./docs/architecture/financial-rules.md).
