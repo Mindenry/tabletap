@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { clientApi, errorMessage } from '@/lib/api';
 import { socketBaseUrl } from '@/lib/socket';
+import { DEMO_MODE } from '@/lib/demo/config';
 import { connectRealtime } from '@/lib/realtime';
 import { cn, elapsedLabel, formatTime } from '@/lib/utils';
 import type { KitchenTicket } from '@/lib/types';
@@ -111,11 +112,15 @@ export function KitchenBoard({
 
   React.useEffect(() => {
     const timer = setInterval(() => setTick((value) => value + 1), 1000);
-    const poll = setInterval(() => void refresh(), 20_000);
+    const poll = setInterval(() => void refresh(), DEMO_MODE ? 5_000 : 20_000);
     return () => {
       clearInterval(timer);
       clearInterval(poll);
     };
+  }, [refresh]);
+
+  React.useEffect(() => {
+    if (DEMO_MODE) void refresh();
   }, [refresh]);
 
   React.useEffect(() => {

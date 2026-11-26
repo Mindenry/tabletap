@@ -43,6 +43,11 @@ const data = raw as unknown as JsonObject;
 export const demoMe = data.me as unknown as DemoMe;
 export const demoBranches = data.branches as unknown as DemoBranch[];
 export const demoPayment = data.demoPayment as unknown as DemoPayment;
+const meByRole = data.meByRole as unknown as Record<string, DemoMe>;
+
+export function demoMeFor(role?: string | null): DemoMe {
+  return (role && meByRole[role]) || demoMe;
+}
 
 export const DEMO_TABLE_TOKEN = 'demo-sathorn-t02-4f8c2a91';
 export const DEMO_EMPTY_TABLE_TOKEN = 'demo-sathorn-t03-4f8c2a91';
@@ -104,14 +109,14 @@ function limitRows(rows: JsonObject[], params: URLSearchParams): JsonObject[] {
  * Resolves a `GET /api/v1/...` path against the bundled snapshot. Query strings
  * are only used for branch selection, table sessions, status and limits.
  */
-export function resolveFixture(path: string): unknown {
+export function resolveFixture(path: string, role?: string | null): unknown {
   const [pathname = '', search = ''] = path.split('?');
   const params = new URLSearchParams(search);
   const branchId = params.get('branchId') || demoBranchId();
   const branch = demoBranchData(branchId);
   const segments = pathname.split('/').filter(Boolean);
 
-  if (pathname === '/auth/me') return demoMe;
+  if (pathname === '/auth/me') return demoMeFor(role);
   if (pathname === '/branches') return demoBranches;
 
   if (segments[0] === 'branches') {

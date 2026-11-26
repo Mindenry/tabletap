@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { BellRing, Check, Clock, Receipt, Utensils } from 'lucide-react';
 import { clientApi, errorMessage } from '@/lib/api';
 import { socketBaseUrl } from '@/lib/socket';
+import { DEMO_MODE } from '@/lib/demo/config';
 import { connectRealtime } from '@/lib/realtime';
 import { cn, elapsedLabel, formatDateTime, formatTime } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -65,7 +66,7 @@ export function RequestsBoard({
 
   React.useEffect(() => {
     void load(status);
-    const timer = setInterval(() => void load(statusRef.current, true), 15_000);
+    const timer = setInterval(() => void load(statusRef.current, true), DEMO_MODE ? 5_000 : 15_000);
     return () => clearInterval(timer);
   }, [status, load]);
 

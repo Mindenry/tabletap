@@ -14,9 +14,12 @@ export function DemoBanner() {
   if (!DEMO_MODE) return null;
 
   return (
-    <div className="fixed bottom-3 left-3 z-[80] flex items-center gap-2 rounded-full border border-white/15 bg-[#16130e]/95 px-3 py-1.5 text-[10px] text-[#f3ede2] shadow-lg backdrop-blur">
+    <div className="fixed bottom-3 left-3 z-30 flex items-center gap-2 rounded-full border border-white/15 bg-[#16130e]/95 px-3 py-1.5 text-[10px] text-[#f3ede2] shadow-lg backdrop-blur">
       <span className="font-semibold uppercase tracking-[0.16em] text-[#9a7733]">Demo</span>
       <span className="text-[#f3ede2]/70">sample data</span>
+      <a href="/login" className="underline underline-offset-2 transition-colors hover:text-[#9a7733]">
+        Switch role
+      </a>
       <button
         type="button"
         onClick={() => {

@@ -775,12 +775,6 @@
               "method": "PROMPTPAY",
               "status": "PAID",
               "amount": "347.60"
-            },
-            {
-              "id": "0553a84f-0d90-4bce-ae6d-3a76c0e9a33d",
-              "method": "PROMPTPAY",
-              "status": "AWAITING_CONFIRMATION",
-              "amount": "347.60"
             }
           ]
         },
@@ -5550,19 +5544,6 @@
             "expiresAt": null,
             "confirmedAt": "2026-11-26T09:49:20.510Z",
             "createdAt": "2026-11-26T09:48:20.510Z",
-            "refunds": []
-          },
-          {
-            "id": "0553a84f-0d90-4bce-ae6d-3a76c0e9a33d",
-            "reference": "PAY-20261126--0JUBG",
-            "method": "PROMPTPAY",
-            "status": "AWAITING_CONFIRMATION",
-            "amount": "347.60",
-            "amountPaid": "0.00",
-            "promptPayPayload": "00020101021229370016A0000006770101110213000000000000053037645406347.605802TH62230519PAY-20261126--0JUBG63048249",
-            "expiresAt": "2026-11-26T10:25:36.235Z",
-            "confirmedAt": null,
-            "createdAt": "2026-11-26T10:05:36.235Z",
             "refunds": []
           }
         ],
@@ -12106,5 +12087,376 @@
     "promptPayTarget": "0000000000000",
     "reference": "DEMO-QR",
     "qrDataUrl": "data:image/png;base64,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"
+  },
+  "meByRole": {
+    "owner": {
+      "user": {
+        "id": "a7b86dd4-712f-42e1-a851-0191724b78b6",
+        "email": "owner@spicegarden.local",
+        "name": "Somchai Rattanakul",
+        "platformAdmin": false
+      },
+      "tenant": {
+        "id": "0ad1db0b-8457-41de-8e5e-8e9f9642e9ac",
+        "name": "Spice Garden",
+        "slug": "spice-garden",
+        "timezone": "Asia/Bangkok",
+        "currency": "THB",
+        "status": "ACTIVE"
+      },
+      "role": "OWNER",
+      "permissions": [
+        "restaurant.read",
+        "restaurant.update",
+        "branch.read",
+        "branch.create",
+        "branch.update",
+        "staff.read",
+        "staff.invite",
+        "staff.update",
+        "staff.deactivate",
+        "menu.read",
+        "menu.create",
+        "menu.update",
+        "menu.delete",
+        "menu.price.update",
+        "order.read",
+        "order.create",
+        "order.cancel",
+        "kitchen.read",
+        "kitchen.update",
+        "table.read",
+        "table.update",
+        "bill.create",
+        "bill.split",
+        "payment.read",
+        "payment.confirm",
+        "payment.refund",
+        "inventory.read",
+        "inventory.adjust",
+        "inventory.receive",
+        "promotion.manage",
+        "analytics.read",
+        "report.export",
+        "audit.read",
+        "settings.manage"
+      ],
+      "branches": [
+        {
+          "id": "524add06-b8c0-4aa5-bc32-e9c4e7137e34",
+          "name": "Sathorn",
+          "code": "SATHORN",
+          "status": "ACTIVE",
+          "vatRate": "7.00",
+          "vatInclusive": true
+        },
+        {
+          "id": "8caa91fd-440b-48f1-a9f8-a05b9256d070",
+          "name": "Ari",
+          "code": "ARI",
+          "status": "ACTIVE",
+          "vatRate": "7.00",
+          "vatInclusive": true
+        },
+        {
+          "id": "5abb55d7-2d67-4ae0-a906-30e3f2b0c6e3",
+          "name": "Thonglor",
+          "code": "THONGLOR",
+          "status": "ACTIVE",
+          "vatRate": "7.00",
+          "vatInclusive": true
+        }
+      ],
+      "membershipId": "cb505e9a-b29c-4ef8-8311-162974260a74",
+      "subscription": {
+        "status": "ACTIVE",
+        "plan": "GROWTH",
+        "planName": "Growth",
+        "trialEndsAt": null,
+        "currentPeriodEnd": "2026-12-26T09:56:59.673Z",
+        "limits": { "staff": 30, "branches": 5, "storageMb": 5120, "monthlyOrders": 20000 }
+      }
+    },
+    "manager": {
+      "user": {
+        "id": "04ca700c-5566-4758-ab1e-3c5e6cd3b845",
+        "email": "manager@spicegarden.local",
+        "name": "Niran Chaiyaporn",
+        "platformAdmin": false
+      },
+      "tenant": {
+        "id": "0ad1db0b-8457-41de-8e5e-8e9f9642e9ac",
+        "name": "Spice Garden",
+        "slug": "spice-garden",
+        "timezone": "Asia/Bangkok",
+        "currency": "THB",
+        "status": "ACTIVE"
+      },
+      "role": "MANAGER",
+      "permissions": [
+        "restaurant.read",
+        "branch.read",
+        "staff.read",
+        "menu.read",
+        "order.read",
+        "kitchen.read",
+        "table.read",
+        "payment.read",
+        "inventory.read",
+        "analytics.read",
+        "restaurant.update",
+        "branch.update",
+        "staff.invite",
+        "staff.update",
+        "menu.create",
+        "menu.update",
+        "menu.delete",
+        "menu.price.update",
+        "order.create",
+        "order.cancel",
+        "kitchen.update",
+        "table.update",
+        "bill.create",
+        "bill.split",
+        "payment.confirm",
+        "inventory.adjust",
+        "inventory.receive",
+        "promotion.manage",
+        "report.export",
+        "audit.read",
+        "settings.manage"
+      ],
+      "branches": [
+        {
+          "id": "524add06-b8c0-4aa5-bc32-e9c4e7137e34",
+          "name": "Sathorn",
+          "code": "SATHORN",
+          "status": "ACTIVE",
+          "vatRate": "7.00",
+          "vatInclusive": true
+        },
+        {
+          "id": "8caa91fd-440b-48f1-a9f8-a05b9256d070",
+          "name": "Ari",
+          "code": "ARI",
+          "status": "ACTIVE",
+          "vatRate": "7.00",
+          "vatInclusive": true
+        }
+      ],
+      "membershipId": "4e42fcc6-b0cf-4d52-a5fc-4b70fa4080dc",
+      "subscription": {
+        "status": "ACTIVE",
+        "plan": "GROWTH",
+        "planName": "Growth",
+        "trialEndsAt": null,
+        "currentPeriodEnd": "2026-12-26T09:56:59.673Z",
+        "limits": { "staff": 30, "branches": 5, "storageMb": 5120, "monthlyOrders": 20000 }
+      }
+    },
+    "cashier": {
+      "user": {
+        "id": "0befb046-510a-45db-91d0-17cf8b0248b2",
+        "email": "cashier@spicegarden.local",
+        "name": "Pim Srisuk",
+        "platformAdmin": false
+      },
+      "tenant": {
+        "id": "0ad1db0b-8457-41de-8e5e-8e9f9642e9ac",
+        "name": "Spice Garden",
+        "slug": "spice-garden",
+        "timezone": "Asia/Bangkok",
+        "currency": "THB",
+        "status": "ACTIVE"
+      },
+      "role": "CASHIER",
+      "permissions": [
+        "restaurant.read",
+        "branch.read",
+        "menu.read",
+        "order.read",
+        "order.create",
+        "table.read",
+        "table.update",
+        "bill.create",
+        "bill.split",
+        "payment.read",
+        "payment.confirm",
+        "payment.refund"
+      ],
+      "branches": [
+        {
+          "id": "524add06-b8c0-4aa5-bc32-e9c4e7137e34",
+          "name": "Sathorn",
+          "code": "SATHORN",
+          "status": "ACTIVE",
+          "vatRate": "7.00",
+          "vatInclusive": true
+        }
+      ],
+      "membershipId": "e6e4c55d-ea21-413b-b584-a1a73fbc5085",
+      "subscription": {
+        "status": "ACTIVE",
+        "plan": "GROWTH",
+        "planName": "Growth",
+        "trialEndsAt": null,
+        "currentPeriodEnd": "2026-12-26T09:56:59.673Z",
+        "limits": { "staff": 30, "branches": 5, "storageMb": 5120, "monthlyOrders": 20000 }
+      }
+    },
+    "kitchen": {
+      "user": {
+        "id": "9be67a72-6b66-494b-a543-9dfd8edbb5a0",
+        "email": "kitchen@spicegarden.local",
+        "name": "Anan Prasert",
+        "platformAdmin": false
+      },
+      "tenant": {
+        "id": "0ad1db0b-8457-41de-8e5e-8e9f9642e9ac",
+        "name": "Spice Garden",
+        "slug": "spice-garden",
+        "timezone": "Asia/Bangkok",
+        "currency": "THB",
+        "status": "ACTIVE"
+      },
+      "role": "KITCHEN",
+      "permissions": [
+        "branch.read",
+        "menu.read",
+        "order.read",
+        "kitchen.read",
+        "kitchen.update",
+        "table.read"
+      ],
+      "branches": [
+        {
+          "id": "524add06-b8c0-4aa5-bc32-e9c4e7137e34",
+          "name": "Sathorn",
+          "code": "SATHORN",
+          "status": "ACTIVE",
+          "vatRate": "7.00",
+          "vatInclusive": true
+        }
+      ],
+      "membershipId": "db4fd312-6d78-4195-a4ca-fa6d6f5eb42a",
+      "subscription": {
+        "status": "ACTIVE",
+        "plan": "GROWTH",
+        "planName": "Growth",
+        "trialEndsAt": null,
+        "currentPeriodEnd": "2026-12-26T09:56:59.673Z",
+        "limits": { "staff": 30, "branches": 5, "storageMb": 5120, "monthlyOrders": 20000 }
+      }
+    },
+    "waiter": {
+      "user": {
+        "id": "5d68aa10-b8fd-4c4e-a97a-79b7ac3000a1",
+        "email": "waiter@spicegarden.local",
+        "name": "Kanya Wong",
+        "platformAdmin": false
+      },
+      "tenant": {
+        "id": "0ad1db0b-8457-41de-8e5e-8e9f9642e9ac",
+        "name": "Spice Garden",
+        "slug": "spice-garden",
+        "timezone": "Asia/Bangkok",
+        "currency": "THB",
+        "status": "ACTIVE"
+      },
+      "role": "WAITER",
+      "permissions": [
+        "branch.read",
+        "menu.read",
+        "order.read",
+        "order.create",
+        "table.read",
+        "table.update",
+        "kitchen.read",
+        "payment.read"
+      ],
+      "branches": [
+        {
+          "id": "524add06-b8c0-4aa5-bc32-e9c4e7137e34",
+          "name": "Sathorn",
+          "code": "SATHORN",
+          "status": "ACTIVE",
+          "vatRate": "7.00",
+          "vatInclusive": true
+        }
+      ],
+      "membershipId": "07d27d9b-7d4e-4532-a1db-074f7d572fc1",
+      "subscription": {
+        "status": "ACTIVE",
+        "plan": "GROWTH",
+        "planName": "Growth",
+        "trialEndsAt": null,
+        "currentPeriodEnd": "2026-12-26T09:56:59.673Z",
+        "limits": { "staff": 30, "branches": 5, "storageMb": 5120, "monthlyOrders": 20000 }
+      }
+    },
+    "viewer": {
+      "user": {
+        "id": "c574cdb8-fd68-4ba0-8e97-3f27bebfc685",
+        "email": "viewer@spicegarden.local",
+        "name": "Auditor View",
+        "platformAdmin": false
+      },
+      "tenant": {
+        "id": "0ad1db0b-8457-41de-8e5e-8e9f9642e9ac",
+        "name": "Spice Garden",
+        "slug": "spice-garden",
+        "timezone": "Asia/Bangkok",
+        "currency": "THB",
+        "status": "ACTIVE"
+      },
+      "role": "VIEWER",
+      "permissions": [
+        "restaurant.read",
+        "branch.read",
+        "staff.read",
+        "menu.read",
+        "order.read",
+        "kitchen.read",
+        "table.read",
+        "payment.read",
+        "inventory.read",
+        "analytics.read"
+      ],
+      "branches": [
+        {
+          "id": "524add06-b8c0-4aa5-bc32-e9c4e7137e34",
+          "name": "Sathorn",
+          "code": "SATHORN",
+          "status": "ACTIVE",
+          "vatRate": "7.00",
+          "vatInclusive": true
+        },
+        {
+          "id": "8caa91fd-440b-48f1-a9f8-a05b9256d070",
+          "name": "Ari",
+          "code": "ARI",
+          "status": "ACTIVE",
+          "vatRate": "7.00",
+          "vatInclusive": true
+        },
+        {
+          "id": "5abb55d7-2d67-4ae0-a906-30e3f2b0c6e3",
+          "name": "Thonglor",
+          "code": "THONGLOR",
+          "status": "ACTIVE",
+          "vatRate": "7.00",
+          "vatInclusive": true
+        }
+      ],
+      "membershipId": "4cf9daa5-9bce-4727-befa-c4f028715ffd",
+      "subscription": {
+        "status": "ACTIVE",
+        "plan": "GROWTH",
+        "planName": "Growth",
+        "trialEndsAt": null,
+        "currentPeriodEnd": "2026-12-26T09:56:59.673Z",
+        "limits": { "staff": 30, "branches": 5, "storageMb": 5120, "monthlyOrders": 20000 }
+      }
+    }
   }
 }

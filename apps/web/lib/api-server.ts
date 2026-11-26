@@ -15,7 +15,9 @@ export async function serverApi<T>(
   init: RequestInit & { revalidate?: number } = {},
 ): Promise<T> {
   if (DEMO_MODE) {
-    const data = resolveFixture(path);
+    const cookieStore = await cookies();
+    const role = cookieStore.get('demo_role')?.value;
+    const data = resolveFixture(path, role);
     if (data === undefined) {
       throw new ApiError(404, 'DEMO_FIXTURE_MISSING', `No demo data for ${path}`);
     }

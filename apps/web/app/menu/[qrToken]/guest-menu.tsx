@@ -24,6 +24,7 @@ import {
 import { clientApi, errorMessage } from '@/lib/api';
 import { socketBaseUrl } from '@/lib/socket';
 import { DEMO_MODE } from '@/lib/demo/config';
+import { settleDemoPayment } from '@/lib/demo/client';
 import { connectRealtime } from '@/lib/realtime';
 import { cn, elapsedLabel, formatTHB } from '@/lib/utils';
 
@@ -876,7 +877,14 @@ export function GuestMenu({
       ) : null}
 
       {pay ? (
-        <PromptPaySheet pay={pay} onClose={() => setPay(null)} onCheck={() => void refreshSession()} />
+        <PromptPaySheet
+          pay={pay}
+          onClose={() => setPay(null)}
+          onCheck={() => {
+            if (DEMO_MODE) settleDemoPayment();
+            void refreshSession();
+          }}
+        />
       ) : null}
     </div>
   );
@@ -1360,8 +1368,18 @@ function PromptPaySheet({
         <ol className="mt-4 space-y-1 border-t border-line pt-3 text-[11px] leading-relaxed text-muted">
           <li>1. Open any Thai banking app.</li>
           <li>2. Scan the QR and confirm {formatTHB(pay.amount)}.</li>
-          <li>3. A team member confirms receipt; this screen updates by itself.</li>
+          <li>
+            {DEMO_MODE
+              ? '3. Demo: this payment is simulated, no money moves.'
+              : '3. A team member confirms receipt; this screen updates by itself.'}
+          </li>
         </ol>
+        {DEMO_MODE ? (
+          <p className="mt-2 text-[10px] leading-relaxed text-gold">
+            Press “Check payment” and the demo settles the bill instantly. The demo also confirms by itself
+            after a few seconds.
+          </p>
+        ) : null}
         <p className="mt-2 font-mono text-[9.5px] text-muted-soft">Ref {pay.reference}</p>
 
         <div className="mt-4 flex gap-2">
@@ -1370,7 +1388,7 @@ function PromptPaySheet({
             onClick={onCheck}
             className="h-10 flex-1 bg-ink text-[12px] font-semibold text-paper transition-colors hover:bg-ink-soft"
           >
-            Check again
+            {DEMO_MODE ? 'Check payment' : 'Check again'}
           </button>
           <button
             type="button"
