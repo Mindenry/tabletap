@@ -8,6 +8,7 @@ import {
   BellRing,
   BookOpen,
   Boxes,
+  Calculator,
   ChevronDown,
   ClipboardList,
   CreditCard,
@@ -47,6 +48,7 @@ const NAV: Array<{ group: string; items: NavItem[] }> = [
       { href: '/app/kitchen', label: 'Kitchen', icon: UtensilsCrossed, permission: 'kitchen.read' },
       { href: '/app/pos', label: 'Point of sale', icon: CreditCard, permission: 'bill.create' },
       { href: '/app/bills', label: 'Bills & payments', icon: ReceiptText, permission: 'payment.read' },
+      { href: '/app/day-close', label: 'Day close', icon: Calculator, permission: 'payment.read' },
     ],
   },
   {

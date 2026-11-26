@@ -16,7 +16,7 @@ complete because a route exists.
 | Demo seed                        | `pnpm db:seed`                                  | Pass — 2 tenants, 4 branches, 60 tables, 34 items, 607 orders |
 | API integration smoke            | `pnpm --filter @tabletap/api test:integration`  | **All checks passed** (50+)                                   |
 | Web integration smoke            | `node apps/web/scripts/web-smoke.mjs`           | **All checks passed** (24)                                    |
-| Production UI                    | `next build` + `next start`, Playwright         | **13 screenshots**, no console errors, CSS 200                |
+| Production UI                    | `next build` + `next start`, Playwright         | **14 screenshots**, no console errors, CSS 200                |
 | Realtime events                  | `pnpm --filter @tabletap/web test:realtime`     | **All checks passed** (2 sockets, staff + guest rooms)        |
 | LAN browser                      | Playwright against `192.168.1.107:3100`         | Socket **Live**, 0 console errors, QR links use LAN           |
 
@@ -75,8 +75,13 @@ the brass rail.
   use `WEB_URL`, CORS and Windows firewall are configured. Verified in a browser at
   `http://192.168.1.107:3100` with the socket reporting Live and zero console errors.
 - **Billing** — bill snapshot, equal/amount/item splits, cancellation, receipt snapshot.
-- **Payments** — cash/card recording, PromptPay payload + QR, confirmation with locking, duplicate
-  and overpayment rejection, expiry, refunds recorded with audit.
+- **Payments** — cash/card recording, PromptPay payload + QR, idempotent creation via
+  `Idempotency-Key`, confirmation with locking, duplicate and overpayment rejection, expiry, refunds
+  recorded with audit.
+- **Operations** — day-close settlement per Bangkok business day (gross, refunds, net, cash
+  collected, payment mix, open bills), CSV export of orders and bills, offset pagination and date
+  filters on both lists.
+- **Guest requests** — open/resolved history with live socket refresh, claim and resolve.
 - **Inventory** — ingredients, receive/adjust/waste/count, movements, low stock, versioned recipes
   with plate cost, atomic idempotent deduction and reversal.
 - **Analytics** — overview, sales series, payment mix, menu performance with margin, kitchen
@@ -119,9 +124,8 @@ the brass rail.
 See [KNOWN_ISSUES.md](./KNOWN_ISSUES.md). The most material:
 
 1. Split rows remain `OPEN` after the bill is paid.
-2. Payment creation is not idempotent; a double tap can create two PENDING payments (overpayment is
-   still prevented at confirmation).
-3. “Today” on the dashboard uses the API host’s local midnight; analytics buckets use Bangkok time.
+2. ~~Payment creation is not idempotent~~ — fixed: `POST /payments` takes an idempotency key.
+3. ~~“Today” uses the API host’s midnight~~ — fixed: analytics and day close use Asia/Bangkok.
 4. The kitchen board is single-instance without the Redis adapter.
 
 ## Exact next task

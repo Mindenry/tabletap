@@ -12,17 +12,16 @@ the confirmation transaction.
 
 ## 2. Payment creation is not idempotent
 
-**Symptom:** a double tap on “Create payment” can produce two `PENDING` payments.
-**Mitigation:** `availableToPay` subtracts pending payments, so the second request is capped; a bill
-can never be overpaid at confirmation.
-**Fix:** accept an `Idempotency-Key` on `POST /payments` and store it in `IdempotencyRecord`.
+**Status: fixed 2026-11-26.** `POST /payments` accepts an `Idempotency-Key`; the record is written in
+the same transaction as the payment, so a duplicate key returns the original payment instead of
+creating a second `PENDING` row, and reusing a key with a different body is rejected with
+`IDEMPOTENCY_KEY_REUSED`. The POS sends a key per action.
 
 ## 3. Dashboard “today” depends on host timezone
 
-**Symptom:** if the API host is not in Asia/Bangkok, the default period can differ from the
-restaurant’s day.
-**Cause:** `AnalyticsService.defaultPeriod` uses server-local midnight; SQL buckets use Bangkok.
-**Fix:** resolve the branch timezone and compute the day boundary in SQL or with a timezone library.
+**Status: fixed 2026-11-26.** `AnalyticsService.defaultPeriod` and the new day-close report derive
+the day boundary from `Asia/Bangkok` (UTC+7), independent of the API host's timezone. Explicit
+`from`/`to` ranges are still honoured.
 
 ## 4. Single-instance realtime
 
@@ -82,6 +81,6 @@ then make `lint` part of the CI job.
 
 ## 12. Orders and bills lists are capped at 100 rows
 
-**Symptom:** both screens request `limit=100` and have no pagination; the page now states this.
-**Impact:** older rows are only reachable through a status filter or order-number search.
-**Fix:** cursor pagination on `GET /orders` and `GET /bills`, plus “load older” in the UI.
+**Status: fixed 2026-11-26.** `GET /orders` and `GET /bills` accept `offset` plus `from`/`to` date
+filters; the web lists page 50 rows at a time with newer/older links, and `GET /orders/export` /
+`GET /bills/export` stream CSV through `/app/exports/*` for reconciliation.

@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { CurrentStaff, RequirePermissions, RequireAnyPermission } from '../auth/decorators';
 import type { StaffPrincipal } from '../auth/principal';
 import { actorFrom, idempotencyKeyFrom } from '../../common/actor';
+import { csvFileName, toCsv } from '../../common/csv';
 import { OrdersService } from './orders.service';
 import { CancelOrderDto, OrderQueryDto, StaffCreateOrderDto } from './orders.dto';
 
@@ -24,6 +25,36 @@ export class OrdersController {
   @ApiHeader({ name: 'Idempotency-Key', required: false })
   create(@CurrentStaff() principal: StaffPrincipal, @Body() dto: StaffCreateOrderDto, @Req() req: Request) {
     return this.orders.createStaffOrder(principal, dto, idempotencyKeyFrom(req), actorFrom(req));
+  }
+
+  @Get('export')
+  @RequirePermissions('report.export')
+  async export(
+    @CurrentStaff() principal: StaffPrincipal,
+    @Query() query: OrderQueryDto,
+    @Res() res: Response,
+  ) {
+    const rows = await this.orders.exportOrders(principal, query);
+    const csv = toCsv(
+      [
+        { header: 'Order', value: (row) => row.number },
+        { header: 'Created', value: (row) => row.createdAt },
+        { header: 'Table', value: (row) => row.table },
+        { header: 'Status', value: (row) => row.status },
+        { header: 'Source', value: (row) => row.source },
+        { header: 'Items', value: (row) => row.items },
+        { header: 'Total (THB)', value: (row) => row.total },
+        { header: 'Bill', value: (row) => row.bill },
+        { header: 'Bill status', value: (row) => row.billStatus },
+      ],
+      rows,
+    );
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${csvFileName('orders', query.from, query.to)}"`,
+    );
+    res.send(csv);
   }
 
   @Get(':id')

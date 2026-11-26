@@ -53,7 +53,6 @@ export default async function RequestsPage({
         eyebrow="Service"
         title="Guest requests"
         description="Calls, water, utensils and bill requests raised from table QR sessions. Acknowledge to claim, resolve when done."
-        actions={<span className="text-[12px] text-muted">{requests.length} open</span>}
       />
       {error ? <InlineError>{error}</InlineError> : null}
       <RequestsBoard initialRequests={requests} branchId={branchId} />

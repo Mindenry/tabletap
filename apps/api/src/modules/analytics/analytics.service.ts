@@ -20,14 +20,30 @@ export class AnalyticsService {
   ) {}
 
   private defaultPeriod(from?: string, to?: string): Period {
-    const now = new Date();
-    const start = from ? new Date(from) : new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const end = to ? new Date(to) : new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const start = from ? new Date(from) : this.bangkokDayStart();
+    const end = to ? new Date(to) : new Date(start.getTime() + 24 * 60 * 60 * 1000);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
       throw new Error('Invalid period');
     }
     if (end <= start) throw new Error('Period end must be after start');
     return { from: start, to: end };
+  }
+
+  /**
+   * Midnight in Asia/Bangkok (UTC+7, no DST) for a YYYY-MM-DD key, or for today
+   * when no key is supplied. Restaurant days are not the API host's days.
+   */
+  private bangkokDayStart(date?: string): Date {
+    const key =
+      date && /^\d{4}-\d{2}-\d{2}$/.test(date)
+        ? date
+        : new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Bangkok',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }).format(new Date());
+    return new Date(`${key}T00:00:00+07:00`);
   }
 
   /**
@@ -339,5 +355,118 @@ export class AnalyticsService {
       vat: moneyString(row.vat),
       paidBills: Number(row.bills),
     }));
+  }
+
+  /**
+   * End-of-day reconciliation for one restaurant day (Asia/Bangkok).
+   * Everything here is derived from bills, payments, refunds and sessions that
+   * were already written; nothing is stored separately, so re-running it is safe.
+   */
+  async dayClose(principal: StaffPrincipal, query: { branchId?: string; date?: string }) {
+    const branch = await this.branches.resolve(principal, query.branchId);
+    const from = this.bangkokDayStart(query.date);
+    const to = new Date(from.getTime() + 24 * 60 * 60 * 1000);
+    const businessDate = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(from);
+
+    const [salesRows, refundRows, orderRows, paymentRows, openBills, openSessions] = await Promise.all([
+      this.prisma.$queryRaw<
+        Array<{ gross: string; vat: string; service: string; discount: string; bills: bigint }>
+      >`
+        SELECT
+          COALESCE(SUM("total"), 0)::text AS gross,
+          COALESCE(SUM("taxTotal"), 0)::text AS vat,
+          COALESCE(SUM("serviceCharge"), 0)::text AS service,
+          COALESCE(SUM("discountTotal"), 0)::text AS discount,
+          COUNT(*)::bigint AS bills
+        FROM "Bill"
+        WHERE "tenantId" = ${principal.tenantId}::uuid
+          AND "branchId" = ${branch.id}::uuid
+          AND "status" = 'PAID'
+          AND "paidAt" >= ${from}
+          AND "paidAt" < ${to}
+      `,
+      this.prisma.$queryRaw<Array<{ refunds: string }>>`
+        SELECT COALESCE(SUM(r."amount"), 0)::text AS refunds
+        FROM "Refund" r
+        JOIN "Payment" p ON p."id" = r."paymentId"
+        WHERE p."tenantId" = ${principal.tenantId}::uuid
+          AND p."branchId" = ${branch.id}::uuid
+          AND r."createdAt" >= ${from}
+          AND r."createdAt" < ${to}
+      `,
+      this.prisma.$queryRaw<Array<{ total: bigint; cancelled: bigint }>>`
+        SELECT COUNT(*)::bigint AS total,
+               COUNT(*) FILTER (WHERE "status" = 'CANCELLED')::bigint AS cancelled
+        FROM "Order"
+        WHERE "tenantId" = ${principal.tenantId}::uuid
+          AND "branchId" = ${branch.id}::uuid
+          AND "createdAt" >= ${from}
+          AND "createdAt" < ${to}
+      `,
+      this.prisma.$queryRaw<Array<{ method: string; total: string; count: bigint }>>`
+        SELECT p."method"::text AS method,
+               COALESCE(SUM(p."amountPaid"), 0)::text AS total,
+               COUNT(*)::bigint AS count
+        FROM "Payment" p
+        WHERE p."tenantId" = ${principal.tenantId}::uuid
+          AND p."branchId" = ${branch.id}::uuid
+          AND p."status" IN ('PAID', 'REFUNDED', 'PARTIALLY_REFUNDED')
+          AND p."confirmedAt" >= ${from}
+          AND p."confirmedAt" < ${to}
+        GROUP BY 1
+        ORDER BY total DESC
+      `,
+      this.prisma.bill.aggregate({
+        where: {
+          tenantId: principal.tenantId,
+          branchId: branch.id,
+          status: { in: ['OPEN', 'PARTIALLY_PAID'] },
+        },
+        _count: { _all: true },
+        _sum: { total: true, paidTotal: true },
+      }),
+      this.prisma.tableSession.count({
+        where: { tenantId: principal.tenantId, branchId: branch.id, closedAt: null },
+      }),
+    ]);
+
+    const gross = num(salesRows[0]?.gross);
+    const refunds = num(refundRows[0]?.refunds);
+    const bills = Number(salesRows[0]?.bills ?? 0);
+    const payments = paymentRows.map((row) => ({
+      method: row.method,
+      total: moneyString(row.total),
+      count: Number(row.count),
+    }));
+    const cashCollected = paymentRows
+      .filter((row) => row.method === 'CASH')
+      .reduce((acc, row) => acc.plus(D(row.total)), D(0));
+    const openDue = D(openBills._sum.total ?? 0).minus(D(openBills._sum.paidTotal ?? 0));
+
+    return {
+      businessDate,
+      timezone: 'Asia/Bangkok',
+      period: { from: from.toISOString(), to: to.toISOString() },
+      branch: { id: branch.id, name: branch.name },
+      grossSales: moneyString(gross),
+      refunds: moneyString(refunds),
+      netSales: moneyString(gross.minus(refunds)),
+      vat: moneyString(salesRows[0]?.vat ?? 0),
+      serviceCharge: moneyString(salesRows[0]?.service ?? 0),
+      discounts: moneyString(salesRows[0]?.discount ?? 0),
+      paidBills: bills,
+      averageBill: moneyString(bills > 0 ? gross.dividedBy(bills) : 0),
+      orders: Number(orderRows[0]?.total ?? 0),
+      cancelledOrders: Number(orderRows[0]?.cancelled ?? 0),
+      payments,
+      cashCollected: moneyString(cashCollected),
+      openBills: { count: openBills._count._all, due: moneyString(openDue) },
+      openSessions,
+    };
   }
 }

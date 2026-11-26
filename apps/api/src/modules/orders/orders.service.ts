@@ -397,6 +397,14 @@ export class OrdersService {
         branchId,
         ...(query.status ? { status: query.status as never } : {}),
         ...(query.tableSessionId ? { tableSessionId: query.tableSessionId } : {}),
+        ...(query.from || query.to
+          ? {
+              createdAt: {
+                ...(query.from ? { gte: new Date(query.from) } : {}),
+                ...(query.to ? { lt: new Date(query.to) } : {}),
+              },
+            }
+          : {}),
         ...(query.search
           ? {
               OR: [
@@ -412,6 +420,7 @@ export class OrdersService {
         billOrders: { select: { billId: true, bill: { select: { number: true, status: true } } } },
       },
       orderBy: { createdAt: 'desc' },
+      skip: query.offset ?? 0,
       take: Math.min(query.limit ?? 50, 200),
     });
 
@@ -430,6 +439,58 @@ export class OrdersService {
       readyAt: row.readyAt,
       servedAt: row.servedAt,
       cancelledAt: row.cancelledAt,
+    }));
+  }
+
+  /** Same filters as the list, but without the 200-row page cap (used by CSV export). */
+  async exportOrders(principal: StaffPrincipal, query: OrderQueryDto) {
+    const allowed = await this.branches.allowedBranchIds(principal);
+    const branchId = query.branchId ?? allowed[0];
+    if (!branchId) throw new NotFoundException({ message: 'No branch', code: 'NO_BRANCH' });
+    await this.branches.load(principal, branchId);
+
+    const rows = await this.prisma.order.findMany({
+      where: {
+        tenantId: principal.tenantId,
+        branchId,
+        ...(query.status ? { status: query.status as never } : {}),
+        ...(query.tableSessionId ? { tableSessionId: query.tableSessionId } : {}),
+        ...(query.from || query.to
+          ? {
+              createdAt: {
+                ...(query.from ? { gte: new Date(query.from) } : {}),
+                ...(query.to ? { lt: new Date(query.to) } : {}),
+              },
+            }
+          : {}),
+        ...(query.search
+          ? {
+              OR: [
+                { number: { contains: query.search, mode: 'insensitive' } },
+                { table: { number: { contains: query.search, mode: 'insensitive' } } },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        table: { select: { number: true } },
+        items: { select: { quantity: true } },
+        billOrders: { select: { bill: { select: { number: true, status: true } } } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5000,
+    });
+
+    return rows.map((row) => ({
+      number: row.number,
+      createdAt: row.createdAt,
+      table: row.table.number,
+      status: row.status,
+      source: row.source,
+      items: row.items.reduce((acc, item) => acc + item.quantity, 0),
+      total: moneyString(row.total),
+      bill: row.billOrders[0]?.bill?.number ?? '',
+      billStatus: row.billOrders[0]?.bill?.status ?? '',
     }));
   }
 

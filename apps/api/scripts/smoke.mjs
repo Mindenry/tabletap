@@ -295,6 +295,23 @@ async function main() {
     status: platformTenantData.status,
   });
 
+  const dayClose = await owner.get(`/api/v1/analytics/day-close?branchId=${branchId}`);
+  check(
+    'day close returns a settlement for the branch',
+    dayClose.status === 200 &&
+      typeof dayClose.body.businessDate === 'string' &&
+      typeof dayClose.body.grossSales === 'string' &&
+      Array.isArray(dayClose.body.payments),
+    dayClose.body,
+  );
+
+  const viewerForExport = await login('viewer@spicegarden.local');
+  const exportDenied = await viewerForExport.client.get(`/api/v1/orders/export?branchId=${branchId}`);
+  check('viewer cannot export reports', exportDenied.status === 403, { status: exportDenied.status });
+
+  const paymentsList = await owner.get(`/api/v1/bills?branchId=${branchId}&limit=5`);
+  check('bills list accepts the page parameters', paymentsList.status === 200 && Array.isArray(paymentsList.body));
+
   const csrfAttempt = new Client();
   csrfAttempt.cookies = new Map(owner.cookies);
   csrfAttempt.cookies.delete('tt_csrf');

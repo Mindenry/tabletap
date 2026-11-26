@@ -1,9 +1,10 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, Res } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { CurrentStaff, RequirePermissions } from '../auth/decorators';
 import type { StaffPrincipal } from '../auth/principal';
-import { actorFrom } from '../../common/actor';
+import { actorFrom, idempotencyKeyFrom } from '../../common/actor';
+import { csvFileName, toCsv } from '../../common/csv';
 import { BillingService } from './billing.service';
 import { PaymentsService } from './payments.service';
 import {
@@ -32,6 +33,35 @@ export class BillsController {
   @RequirePermissions('bill.create')
   create(@CurrentStaff() principal: StaffPrincipal, @Body() dto: CreateBillDto, @Req() req: Request) {
     return this.billing.createBill(principal, dto.tableSessionId, actorFrom(req));
+  }
+
+  @Get('export')
+  @RequirePermissions('report.export')
+  async export(
+    @CurrentStaff() principal: StaffPrincipal,
+    @Query() query: BillQueryDto,
+    @Res() res: Response,
+  ) {
+    const rows = await this.billing.exportBills(principal, query);
+    const csv = toCsv(
+      [
+        { header: 'Bill', value: (row) => row.number },
+        { header: 'Created', value: (row) => row.createdAt },
+        { header: 'Paid at', value: (row) => row.paidAt },
+        { header: 'Table', value: (row) => row.table },
+        { header: 'Status', value: (row) => row.status },
+        { header: 'Total (THB)', value: (row) => row.total },
+        { header: 'Paid (THB)', value: (row) => row.paid },
+        { header: 'Due (THB)', value: (row) => row.due },
+      ],
+      rows,
+    );
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${csvFileName('bills', query.from, query.to)}"`,
+    );
+    res.send(csv);
   }
 
   @Get(':id')
@@ -77,8 +107,9 @@ export class PaymentsController {
 
   @Post()
   @RequirePermissions('payment.confirm')
+  @ApiHeader({ name: 'Idempotency-Key', required: false })
   create(@CurrentStaff() principal: StaffPrincipal, @Body() dto: CreatePaymentDto, @Req() req: Request) {
-    return this.payments.createPayment(principal, dto, actorFrom(req));
+    return this.payments.createPayment(principal, dto, actorFrom(req), idempotencyKeyFrom(req));
   }
 
   @Get(':id')

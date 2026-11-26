@@ -328,3 +328,35 @@ watched. The audit found presentation bugs rather than broken flows; the fixes b
 - `pnpm --filter @tabletap/api test` → 30/30.
 - `node apps/web/scripts/web-smoke.mjs` → 24/24.
 - Browser pass over 13 staff routes plus 5 phone routes: no unexpected console errors.
+
+## 2026-11-26 — Session 6 (operations feature pack)
+
+### Backend
+
+- **Orders and bills** accept `offset`, `from` and `to`; both lists page 50 rows at a time.
+- **CSV export** at `GET /orders/export` and `GET /bills/export`, gated by `report.export`, with a
+  BOM so Excel keeps Thai text.
+- **Day close** at `GET /analytics/day-close?branchId&date`: settled bills, VAT, service, discounts,
+  refunds, net, average bill, order counts, payment mix, cash collected, unsettled bills and open
+  sessions for one Bangkok business day. Available to `payment.read` as well as `analytics.read`.
+- **Payment idempotency**: `POST /payments` writes an `IdempotencyRecord` in the payment
+  transaction; a replay returns the original payment, a different body under the same key returns
+  `IDEMPOTENCY_KEY_REUSED`.
+- **Bangkok day boundary**: default analytics periods no longer depend on the API host timezone.
+
+### Web
+
+- Orders and bills: date range, offset pagination, CSV button, and a phone card layout instead of a
+  squeezed table.
+- New **Day close** page under Money: metric band, settlement and payment breakdown, still-open
+  bills, print and bills CSV for the date.
+- Guest requests: Active / Resolved / All tabs, live socket refresh with a Live chip, resolved
+  history with note and timestamp, and a toast when a new request arrives.
+- POS sends an idempotency key with each payment request.
+
+### Verified
+
+- API smoke now asserts day close, viewer export denial and paged bill lists → all pass.
+- Payment idempotency exercised over HTTP: two identical calls returned the same payment id.
+- Orders CSV returned 291 rows for the branch; day close returned the seeded day totals.
+- 14 screenshots, no console errors.

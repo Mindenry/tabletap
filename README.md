@@ -53,9 +53,9 @@ Guest scans QR ──► Menu & cart ──► Order (server priced, idempotent)
 | ---------------------------------------------- | --------------------------------------------------- |
 | ![Guest menu](docs/screenshots/guest-menu.png) | ![Dish sheet](docs/screenshots/guest-menu-dish.png) |
 
-| Platform administration                    |
-| ------------------------------------------ |
-| ![Platform](docs/screenshots/platform.png) |
+| Day close                                    | Platform administration                    |
+| -------------------------------------------- | ------------------------------------------ |
+| ![Day close](docs/screenshots/day-close.png) | ![Platform](docs/screenshots/platform.png) |
 
 Screenshots are captured from the production build with Playwright
 (`pnpm screenshots`) against the seeded demo, not mocked up. The script writes
@@ -104,6 +104,7 @@ system. Type carries the hierarchy; colour is reserved for state and money.
 | Payments                                  | **Implemented**     | Cash/card recording, PromptPay EMVCo QR, locked confirmation, overpay/duplicate protection, refunds recorded |
 | Inventory & recipes                       | **Implemented**     | Atomic once-only deduction on kitchen accept, partial reversal on rejection, full reversal on cancel         |
 | Analytics                                 | **Implemented**     | Gross/net sales, payment mix, menu margin, kitchen timings, all from source tables                           |
+| Day close & exports                       | **Implemented**     | Bangkok business day, cash collected, open bills, CSV for orders and bills, print view                       |
 | Audit log                                 | **Implemented**     | Security and money actions, request IDs, before/after where safe                                             |
 | Platform administration                   | **Implemented**     | Tenant lifecycle, suspension revokes sessions, plans, usage, health                                          |
 | PWA                                       | **Partial**         | Manifest, icons, offline page, connection banner. No offline ordering (by design)                            |

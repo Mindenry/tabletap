@@ -37,7 +37,27 @@ export class PaymentsService {
     private readonly billing: BillingService,
   ) {}
 
-  async createPayment(principal: StaffPrincipal, dto: CreatePaymentDto, actor: ActorMeta) {
+  async createPayment(
+    principal: StaffPrincipal,
+    dto: CreatePaymentDto,
+    actor: ActorMeta,
+    idempotencyKey?: string,
+  ) {
+    const scope = 'payment.create';
+    if (idempotencyKey) {
+      const existing = await this.prisma.idempotencyRecord.findUnique({
+        where: { tenantId_scope_key: { tenantId: principal.tenantId, scope, key: idempotencyKey } },
+      });
+      if (existing) {
+        if (existing.requestHash !== JSON.stringify(dto)) {
+          throw new ConflictException({
+            message: 'This idempotency key was already used with a different request',
+            code: 'IDEMPOTENCY_KEY_REUSED',
+          });
+        }
+        return existing.responseBody;
+      }
+    }
     const bill = await this.prisma.bill.findUnique({
       where: { id: dto.billId },
       include: { payments: true },
@@ -81,32 +101,60 @@ export class PaymentsService {
     }
 
     const reference = `PAY-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomCode(8)}`;
-    const payment = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.payment.create({
-        data: {
-          tenantId: principal.tenantId,
-          branchId: bill.branchId,
-          billId: bill.id,
-          method: dto.method,
-          status: 'PENDING',
-          amount,
-          amountPaid: D(0),
-          currency: bill.currency,
-          reference,
-          expiresAt: new Date(Date.now() + 30 * 60 * 1000),
-        },
+    let payment: ReturnType<PaymentsService['serialize']>;
+    try {
+      payment = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.payment.create({
+          data: {
+            tenantId: principal.tenantId,
+            branchId: bill.branchId,
+            billId: bill.id,
+            method: dto.method,
+            status: 'PENDING',
+            amount,
+            amountPaid: D(0),
+            currency: bill.currency,
+            reference,
+            expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+          },
+        });
+        await tx.paymentAttempt.create({
+          data: {
+            paymentId: created.id,
+            action: 'CREATE',
+            actorId: principal.userId,
+            result: 'SUCCESS',
+            detail: dto.referenceNote ?? null,
+          },
+        });
+        const serialized = this.serialize(created);
+        if (idempotencyKey) {
+          // Written in the same transaction as the payment, so a duplicate key can
+          // never produce a second PENDING row.
+          await tx.idempotencyRecord.create({
+            data: {
+              tenantId: principal.tenantId,
+              scope,
+              key: idempotencyKey,
+              requestHash: JSON.stringify(dto),
+              responseCode: 201,
+              responseBody: serialized as unknown as Prisma.InputJsonValue,
+            },
+          });
+        }
+        return serialized;
       });
-      await tx.paymentAttempt.create({
-        data: {
-          paymentId: created.id,
-          action: 'CREATE',
-          actorId: principal.userId,
-          result: 'SUCCESS',
-          detail: dto.referenceNote ?? null,
-        },
-      });
-      return created;
-    });
+    } catch (error) {
+      if (idempotencyKey && error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        // A concurrent request with the same key won the race. Its record is the
+        // canonical response; the loser must not create a second payment.
+        const existing = await this.prisma.idempotencyRecord.findUnique({
+          where: { tenantId_scope_key: { tenantId: principal.tenantId, scope, key: idempotencyKey } },
+        });
+        if (existing) return existing.responseBody;
+      }
+      throw error;
+    }
 
     await this.audit.record(
       {
@@ -121,7 +169,7 @@ export class PaymentsService {
       },
       this.prisma,
     );
-    return this.serialize(payment);
+    return payment;
   }
 
   async generatePromptPay(principal: StaffPrincipal, paymentId: string, actor: ActorMeta) {

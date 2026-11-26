@@ -2,7 +2,7 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
-import { CurrentStaff, RequirePermissions } from '../auth/decorators';
+import { CurrentStaff, RequirePermissions, RequireAnyPermission } from '../auth/decorators';
 import type { StaffPrincipal } from '../auth/principal';
 import { AnalyticsService } from './analytics.service';
 
@@ -33,6 +33,17 @@ class MenuQueryDto extends PeriodQueryDto {
   @Min(1)
   @Max(200)
   limit?: number;
+}
+
+class DayCloseQueryDto {
+  @IsOptional()
+  @IsString()
+  branchId?: string;
+
+  /** YYYY-MM-DD in the restaurant's timezone. Defaults to today in Bangkok. */
+  @IsOptional()
+  @IsString()
+  date?: string;
 }
 
 @ApiTags('analytics')
@@ -69,5 +80,11 @@ export class AnalyticsController {
   @RequirePermissions('analytics.read')
   branches(@CurrentStaff() principal: StaffPrincipal, @Query() query: PeriodQueryDto) {
     return this.analytics.branchComparison(principal, query);
+  }
+
+  @Get('day-close')
+  @RequireAnyPermission('analytics.read', 'payment.read')
+  dayClose(@CurrentStaff() principal: StaffPrincipal, @Query() query: DayCloseQueryDto) {
+    return this.analytics.dayClose(principal, query);
   }
 }

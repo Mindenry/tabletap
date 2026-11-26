@@ -173,6 +173,14 @@ export class BillingService {
         branchId: branch.id,
         ...(query.status ? { status: query.status as never } : {}),
         ...(query.search ? { number: { contains: query.search, mode: 'insensitive' } } : {}),
+        ...(query.from || query.to
+          ? {
+              createdAt: {
+                ...(query.from ? { gte: new Date(query.from) } : {}),
+                ...(query.to ? { lt: new Date(query.to) } : {}),
+              },
+            }
+          : {}),
       },
       include: {
         tableSession: { include: { table: { select: { number: true, name: true } } } },
@@ -180,6 +188,7 @@ export class BillingService {
         _count: { select: { items: true, orders: true } },
       },
       orderBy: { createdAt: 'desc' },
+      skip: query.offset ?? 0,
       take: Math.min(query.limit ?? 50, 200),
     });
     return rows.map((bill) => ({
@@ -202,6 +211,42 @@ export class BillingService {
         status: payment.status,
         amount: moneyString(payment.amount),
       })),
+    }));
+  }
+
+  /** Same filters as the list, without the page cap (used by CSV export). */
+  async exportBills(principal: StaffPrincipal, query: BillQueryDto) {
+    const branch = await this.branches.resolve(principal, query.branchId);
+    const rows = await this.prisma.bill.findMany({
+      where: {
+        tenantId: principal.tenantId,
+        branchId: branch.id,
+        ...(query.status ? { status: query.status as never } : {}),
+        ...(query.search ? { number: { contains: query.search, mode: 'insensitive' } } : {}),
+        ...(query.from || query.to
+          ? {
+              createdAt: {
+                ...(query.from ? { gte: new Date(query.from) } : {}),
+                ...(query.to ? { lt: new Date(query.to) } : {}),
+              },
+            }
+          : {}),
+      },
+      include: { tableSession: { include: { table: { select: { number: true } } } } },
+      orderBy: { createdAt: 'desc' },
+      take: 5000,
+    });
+
+    return rows.map((bill) => ({
+      number: bill.number,
+      createdAt: bill.createdAt,
+      paidAt: bill.paidAt,
+      table: bill.tableSession.table.number,
+      status: bill.status,
+      total: moneyString(bill.total),
+      paid: moneyString(bill.paidTotal),
+      due: moneyString(bill.total.minus(bill.paidTotal)),
+      currency: bill.currency,
     }));
   }
 

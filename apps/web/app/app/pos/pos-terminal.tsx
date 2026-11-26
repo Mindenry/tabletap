@@ -181,6 +181,7 @@ export function PosTerminal({
       const created = await clientApi<{ id: string; status: string; amount: string }>('/payments', {
         method: 'POST',
         body: { billId: bill.id, method, amount: Number(amount) },
+        idempotencyKey: crypto.randomUUID(),
       });
       setPaymentId(created.id);
       if (method === 'PROMPTPAY') {
