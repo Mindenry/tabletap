@@ -15,14 +15,21 @@ writes the REST API. There is no mock data layer.
 
 <https://tabletap-728.netlify.app>
 
-Sign in as `cashier@spicegarden.local` with `TableTap!2026`, or open table 02 on a phone:
-<https://tabletap-728.netlify.app/menu/demo-sathorn-t02-4f8c2a91>.
+The demo runs entirely in the browser. A snapshot of the seeded restaurant is bundled at build time,
+so there is no API, database or tunnel behind it. Login is bypassed and the staff screens open
+directly.
 
-Netlify hosts the Next.js app. The API, PostgreSQL and WebSockets do not run there, so this demo's API
-is served from a development machine behind a Cloudflare tunnel and its database is a separate seed
-with a non-payable PromptPay placeholder. The link works while that tunnel is up.
-[docs/deployment/netlify.md](docs/deployment/netlify.md) explains the split and how to make it
-permanent.
+- Staff app: <https://tabletap-728.netlify.app/app/dashboard>
+- Guest menu at table 02: <https://tabletap-728.netlify.app/menu/demo-sathorn-t02-4f8c2a91>
+
+The guest flow is interactive: add dishes, send an order, watch it move through the kitchen states,
+call a waiter, request the bill, then open the PromptPay sheet and watch it settle. Orders, requests
+and the payment simulation are kept in `localStorage`; the badge in the corner resets them. Staff
+screens are a read-only showcase and say so when an action is attempted. The PromptPay target is the
+non-payable placeholder `0000000000000`.
+
+[docs/deployment/netlify.md](docs/deployment/netlify.md) explains the split and how to run the full
+stack with an API.
 
 ## Screenshots
 

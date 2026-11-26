@@ -570,3 +570,29 @@ guest must be able to pay from their own phone without waiting for staff to star
 - Reproduced in Chromium at the LAN address: `isSecureContext: false`, `randomUUID` missing,
   `getRandomValues` present. Take payment created the payment with zero console errors.
 - `pnpm lint` 4/4, web typecheck clean, web rebuilt and restarted from the LAN address.
+
+## 2026-11-26 — Session 13 (a demo with no backend)
+
+Netlify can host the Next.js app but not the Nest process, PostgreSQL or WebSockets. The public demo
+therefore ships a snapshot instead of an API.
+
+### How it works
+
+- `apps/web/lib/demo/fixtures.json` holds the seeded restaurant: branches, tables, menu, orders,
+  bills, kitchen tickets, requests, inventory, promotions, staff, audit rows and analytics.
+- `serverApi` resolves from the snapshot, so every server-rendered page works without a network call.
+- `clientApi` resolves reads from the same snapshot and routes the guest writes into a browser store.
+  Orders advance through PENDING, PREPARING, READY and SERVED; requests are acknowledged; the
+  PromptPay sheet settles after a few seconds.
+- Login is bypassed, sockets are replaced by a no-op object, and the guest screen polls.
+- Staff mutations return a short "demo is read-only" message. The guest flow is the interactive part.
+- A small badge at the bottom explains the mode and resets the browser store.
+
+### Verification
+
+- All staff routes return 200 in the production build: dashboard, floor, POS, kitchen, menu, orders,
+  bills, requests, inventory, analytics, day close, promotions, settings, staff, audit, kitchen
+  display.
+- Guest flow in Chromium: add a dish, send the order, see the demo order, open the PromptPay sheet,
+  and see "Paid in full" after the simulated confirmation. No console errors.
+- `pnpm lint` 4/4 and web typecheck clean.
