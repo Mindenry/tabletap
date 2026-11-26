@@ -1,6 +1,6 @@
 [build]
   command = "pnpm --filter @tabletap/shared build && pnpm --filter @tabletap/web build"
-  publish = "apps/web/.next"
+  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "22"
