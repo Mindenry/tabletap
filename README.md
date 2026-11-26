@@ -16,17 +16,19 @@ writes the REST API. There is no mock data layer.
 <https://tabletap-728.netlify.app>
 
 The demo runs entirely in the browser. A snapshot of the seeded restaurant is bundled at build time,
-so there is no API, database or tunnel behind it. Login is bypassed and the staff screens open
-directly.
+so there is no API, database or tunnel behind it.
 
-- Staff app: <https://tabletap-728.netlify.app/app/dashboard>
+- Staff app: <https://tabletap-728.netlify.app/login> (pick a role, no password)
 - Guest menu at table 02: <https://tabletap-728.netlify.app/menu/demo-sathorn-t02-4f8c2a91>
 
-The guest flow is interactive: add dishes, send an order, watch it move through the kitchen states,
-call a waiter, request the bill, then open the PromptPay sheet and watch it settle. Orders, requests
-and the payment simulation are kept in `localStorage`; the badge in the corner resets them. Staff
-screens are a read-only showcase and say so when an action is attempted. The PromptPay target is the
-non-payable placeholder `0000000000000`.
+The login screen offers six roles: owner, manager, cashier, kitchen, waiter and viewer. Each one
+opens the same seeded restaurant with the permissions that role has.
+
+The guest menu, kitchen board, POS and requests share one browser store. Place an order as the guest
+and it appears on the kitchen board; accept, start and mark it ready and the guest status follows. A
+payment taken in the POS settles the guest bill, and the guest PromptPay sheet settles when you press
+**Check payment**. Orders, requests and payments stay in `localStorage`; the badge in the corner
+resets them. The PromptPay target is the non-payable placeholder `0000000000000`.
 
 [docs/deployment/netlify.md](docs/deployment/netlify.md) explains the split and how to run the full
 stack with an API.

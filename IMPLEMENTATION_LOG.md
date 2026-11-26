@@ -596,3 +596,46 @@ therefore ships a snapshot instead of an API.
 - Guest flow in Chromium: add a dish, send the order, see the demo order, open the PromptPay sheet,
   and see "Paid in full" after the simulated confirmation. No console errors.
 - `pnpm lint` 4/4 and web typecheck clean.
+
+## 2026-11-26 — Session 14 (a sandbox that actually responds)
+
+The first no-backend demo looked right but felt dead: the login screen was skipped, the guest
+"Check again" button waited on a timer, and staff actions answered "read-only".
+
+### Roles and login
+
+- `/login` shows a role picker instead of redirecting. The choice is stored in a `demo_role` cookie.
+- `serverApi` reads that cookie and resolves `/auth/me` from `meByRole`, a snapshot of the six seeded
+  accounts (owner, manager, cashier, kitchen, waiter, viewer), so permissions and navigation follow
+  the selected role.
+- The demo badge links back to the picker.
+
+### One store for the whole flow
+
+- Guest and staff writes share `localStorage` (`tabletap-demo-v2`): orders, kitchen tickets, bills,
+  payments and requests.
+- A guest order creates a ticket on the kitchen board. Accept, start, ready and served move both the
+  ticket and the guest order status.
+- A POS payment (cash or PromptPay) settles the bill and the guest sees it within the five-second
+  poll. The guest PromptPay sheet creates a pending payment that the POS can confirm.
+- Request actions (acknowledge, resolve) update the guest request status.
+- The guest "Check payment" button settles the demo payment immediately; the sheet also closes on
+  its own after a few seconds.
+
+### Two UI bugs found while testing
+
+- The demo badge sat above dialogs and intercepted clicks on the pay sheet's primary button. It is
+  now below the dialog layer.
+- The fixture snapshot still carried a pending PromptPay payment from an earlier test, which made
+  the POS show zero available to pay. Pending payments were removed from the snapshot.
+
+### Verification
+
+- Login: role cards render, choosing Cashier lands on the dashboard.
+- Guest: add a dish, send the order, request the bill.
+- POS: table 02 shows ฿347.60 available, the PromptPay QR appears, Simulate provider paid settles it,
+  and the guest shows "Paid in full".
+- Kitchen: the demo order appears on the board with Accept/Reject and station filters.
+- Requests: the guest bill request appears with Acknowledge/Resolve.
+- Guest PromptPay sheet: "Check payment" closes the sheet and shows "Paid in full"; no console
+  errors and no `/api/v1` requests.

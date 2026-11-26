@@ -10,13 +10,16 @@ server, so the full product needs an API host and a database somewhere else.
 The site at <https://tabletap-728.netlify.app> runs with no backend at all:
 
 - Server renders resolve from `apps/web/lib/demo/fixtures.json`, a snapshot of the seeded restaurant.
-- `DEMO_MODE` skips the login screen and returns the demo owner.
-- Client reads resolve from the same snapshot. Guest writes (orders, requests and the payment
-  simulation) live in `localStorage`.
-- Sockets are replaced by a no-op object and the guest screen polls instead.
-- Staff mutations are refused with a short demo message. The guest flow is the part you can play.
-- The badge at the bottom of the screen resets the browser state.
-- The PromptPay target is the non-payable placeholder `0000000000000`.
+- `DEMO_MODE` replaces the login form with a role picker. The chosen role is stored in a
+  `demo_role` cookie and `/auth/me` resolves to that role's fixture.
+- Client reads resolve from the same snapshot. Guest and staff writes share one `localStorage`
+  store: guest orders create kitchen tickets, ticket transitions move the guest status, POS payments
+  settle the guest bill, and request actions update the guest view.
+- Sockets are replaced by a no-op object; the guest screen, kitchen board and POS poll instead.
+- Actions outside the sandbox return a short demo message.
+- The badge at the bottom of the screen resets the browser state and links back to the role picker.
+- The PromptPay target is the non-payable placeholder `0000000000000`. The guest sheet settles on
+  **Check payment**.
 
 The build sets `NEXT_PUBLIC_DEMO_MODE=1`. Without it, the app calls the real API.
 
