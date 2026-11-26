@@ -83,6 +83,10 @@ export const env = {
   get redisUrl(): string | undefined {
     return optional('REDIS_URL');
   },
+  /** Shared secret for the payment provider webhook (HMAC-SHA256 over the raw body). */
+  get paymentWebhookSecret(): string | undefined {
+    return optional('PAYMENT_WEBHOOK_SECRET');
+  },
   get throttleTtlMs(): number {
     return Number(optional('THROTTLE_TTL_MS') ?? 60_000);
   },

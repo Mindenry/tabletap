@@ -67,6 +67,7 @@ export function PosTerminal({
   const [parts, setParts] = React.useState('2');
 
   const [paymentOpen, setPaymentOpen] = React.useState(false);
+  const [paymentSplitId, setPaymentSplitId] = React.useState<string | null>(null);
   const [method, setMethod] = React.useState<'CASH' | 'PROMPTPAY' | 'CARD'>('CASH');
   const [amount, setAmount] = React.useState('');
   const [promptPay, setPromptPay] = React.useState<{
@@ -165,9 +166,10 @@ export function PosTerminal({
     }
   }
 
-  function openPayment() {
+  function openPayment(split?: { id: string; amount: string }) {
     if (!bill) return;
-    setAmount(bill.availableToPay);
+    setPaymentSplitId(split?.id ?? null);
+    setAmount(split?.amount ?? bill.availableToPay);
     setPaymentId(null);
     setPromptPay(null);
     setMethod('CASH');
@@ -180,7 +182,12 @@ export function PosTerminal({
     try {
       const created = await clientApi<{ id: string; status: string; amount: string }>('/payments', {
         method: 'POST',
-        body: { billId: bill.id, method, amount: Number(amount) },
+        body: {
+          billId: bill.id,
+          method,
+          amount: Number(amount),
+          ...(paymentSplitId ? { splitId: paymentSplitId } : {}),
+        },
         idempotencyKey: crypto.randomUUID(),
       });
       setPaymentId(created.id);
@@ -515,7 +522,7 @@ export function PosTerminal({
                     <div className="mt-3 grid gap-2">
                       {canConfirm ? (
                         <Button
-                          onClick={openPayment}
+                          onClick={() => openPayment()}
                           disabled={Number(bill.availableToPay) <= 0}
                           className="w-full"
                         >
@@ -543,11 +550,30 @@ export function PosTerminal({
                       <p className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted">
                         Shares
                       </p>
-                      <ul className="mt-2 space-y-1.5">
+                      <ul className="mt-2 divide-y divide-line/70">
                         {bill.splits.map((split) => (
-                          <li key={split.id} className="flex items-center justify-between text-[12px]">
-                            <span>{split.label}</span>
-                            <span className="tabular font-medium">{formatTHB(split.amount)}</span>
+                          <li
+                            key={split.id}
+                            className="flex items-center justify-between gap-3 py-1.5 text-[12px]"
+                          >
+                            <div>
+                              <p className="text-ink">{split.label}</p>
+                              <p className="text-[10px] text-muted">{split.status.toLowerCase()}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="tabular font-medium">{formatTHB(split.amount)}</span>
+                              {split.status === 'PAID' ? (
+                                <StatusBadge status="PAID" />
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => openPayment({ id: split.id, amount: split.amount })}
+                                >
+                                  Take payment
+                                </Button>
+                              )}
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -637,10 +663,15 @@ export function PosTerminal({
 
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
         <DialogContent
-          title="Take payment"
+          title={paymentSplitId ? 'Take payment for a share' : 'Take payment'}
           description="A payment is only marked paid after this confirmation step. A PromptPay QR requests money; it does not prove it arrived."
         >
           <div className="space-y-4">
+            {paymentSplitId ? (
+              <p className="border border-line bg-paper-deep/50 px-2.5 py-1.5 text-[11px] text-ink-soft">
+                This payment settles one share of the split; the others stay open until they are paid.
+              </p>
+            ) : null}
             <div className="space-y-1.5">
               <Label htmlFor="method">Method</Label>
               <Select
@@ -667,7 +698,6 @@ export function PosTerminal({
 
             {promptPay ? (
               <div className="flex flex-col items-center gap-2 rounded-md border border-line bg-paper/60 p-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={promptPay.dataUrl} alt="PromptPay QR" className="h-44 w-44 rounded bg-white p-1" />
                 <p className="text-[11px] text-muted">
                   Ask the guest to scan, then confirm once you see the transfer.

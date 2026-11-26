@@ -1123,6 +1123,7 @@ model BillSplit {
 
   bill  Bill            @relation(fields: [billId], references: [id], onDelete: Cascade)
   items BillSplitItem[]
+  payments Payment[]
 
   @@index([billId])
 }
@@ -1166,6 +1167,7 @@ model Payment {
   providerRef        String?
   promptPayPayload   String?
   expiresAt          DateTime?
+  splitId            String?       @db.Uuid
   confirmedById      String?       @db.Uuid
   confirmedAt        DateTime?
   failureReason      String?
@@ -1176,9 +1178,12 @@ model Payment {
   branch      Branch       @relation(fields: [branchId], references: [id], onDelete: Restrict)
   bill        Bill         @relation(fields: [billId], references: [id], onDelete: Restrict)
   confirmedBy User?        @relation("PaymentConfirmer", fields: [confirmedById], references: [id], onDelete: SetNull)
+  split       BillSplit?   @relation(fields: [splitId], references: [id], onDelete: SetNull)
   attempts    PaymentAttempt[]
   proofs      PaymentProof[]
   refunds     Refund[]
+
+  @@index([splitId])
 
   @@index([billId, status])
   @@index([tenantId, status, createdAt])

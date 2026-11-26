@@ -247,6 +247,21 @@ Notes:
 
 ---
 
+## Operations
+
+- **Health & metrics** — `GET /api/v1/health` (liveness), `GET /api/v1/health/ready` (PostgreSQL,
+  Redis, outbox backlog; `503` when degraded), `GET /api/v1/metrics` (Prometheus text).
+- **Backups** — `pnpm backup` writes a gzipped `pg_dump` to `backups/` and keeps the last 14;
+  `pnpm restore <file>` restores it. Detail: [docs/operations/backups.md](./docs/operations/backups.md).
+- **Monitoring** — scrape config, alert rules and log fields:
+  [docs/operations/monitoring.md](./docs/operations/monitoring.md).
+- **Printing** — `tools/print-agent` prints kitchen tickets and receipts on an 80 mm ESC/POS printer
+  over TCP, with Thai TIS-620 text: [tools/print-agent/README.md](./tools/print-agent/README.md).
+- **Realtime at scale** — with `REDIS_URL` set, the Socket.IO gateway attaches the Redis adapter, so
+  sockets on every API instance receive the same events.
+
+---
+
 ## Verification
 
 Commands below were executed against this repository and the seeded database.
@@ -255,10 +270,12 @@ Commands below were executed against this repository and the seeded database.
 pnpm --filter @tabletap/api test        # 30 unit tests
 pnpm --filter @tabletap/api typecheck
 pnpm --filter @tabletap/web build
-pnpm --filter @tabletap/api test:integration   # requires API + seed (50+ checks)
+pnpm lint                               # ESLint 9 flat config, all packages
+pnpm --filter @tabletap/api test:integration   # requires API + seed (60+ checks)
 pnpm --filter @tabletap/web test:integration   # requires web + seed (24 checks)
 pnpm --filter @tabletap/web test:realtime      # two real sockets: staff + guest rooms
 pnpm screenshots                               # captures docs/screenshots/*
+pnpm backup                                    # pg_dump into backups/
 ```
 
 > **Do not run `next build` while `next dev` is running.** Both use `apps/web/.next`; the build
@@ -314,8 +331,10 @@ Full detail: [docs/architecture/financial-rules.md](./docs/architecture/financia
 
 - PromptPay QR generation is a **real EMVCo payload** validated with CRC-16/CCITT and known check
   values. It requests money; it does **not** prove money arrived.
-- Without a verified PSP integration, a payment stays `AWAITING_CONFIRMATION` until an authorised
-  cashier confirms it. Confirmation records the staff member, timestamp and amount.
+- Without a provider, a payment stays `AWAITING_CONFIRMATION` until an authorised cashier confirms
+  it. With `PAYMENT_WEBHOOK_SECRET` set, a provider can confirm it by signing a
+  `POST /api/v1/public/payments/provider/:provider/webhook` event with HMAC-SHA256; the event is
+  stored idempotently before the payment is settled.
 - Recording a refund **does not move money**. Staff must complete the transfer with their bank/PSP.
 - Receipts are sales receipts, not Thai e-Tax invoices. Fiscal certification is out of scope.
 

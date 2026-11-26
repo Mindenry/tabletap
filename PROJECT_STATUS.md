@@ -14,8 +14,9 @@ complete because a route exists.
 | Unit tests                       | `pnpm --filter @tabletap/api test`              | **30 passed**                                                 |
 | Database migration               | `prisma migrate reset --force --skip-seed`      | Pass                                                          |
 | Demo seed                        | `pnpm db:seed`                                  | Pass — 2 tenants, 4 branches, 60 tables, 34 items, 607 orders |
-| API integration smoke            | `pnpm --filter @tabletap/api test:integration`  | **All checks passed** (50+)                                   |
+| API integration smoke            | `pnpm --filter @tabletap/api test:integration`  | **All checks passed** (65+ incl. readiness, metrics, webhook) |
 | Web integration smoke            | `node apps/web/scripts/web-smoke.mjs`           | **All checks passed** (24)                                    |
+| Lint                             | `pnpm lint`                                     | Pass (ESLint 9 flat config, 4 packages)                       |
 | Production UI                    | `next build` + `next start`, Playwright         | **17 screenshots**, no console errors, CSS 200                |
 | Realtime events                  | `pnpm --filter @tabletap/web test:realtime`     | **All checks passed** (2 sockets, staff + guest rooms)        |
 | LAN browser                      | Playwright against `192.168.1.107:3100`         | Socket **Live**, 0 console errors, QR links use LAN           |
@@ -77,7 +78,14 @@ the brass rail.
 - **Billing** — bill snapshot, equal/amount/item splits, cancellation, receipt snapshot.
 - **Payments** — cash/card recording, PromptPay payload + QR, idempotent creation via
   `Idempotency-Key`, confirmation with locking, duplicate and overpayment rejection, expiry, refunds
-  recorded with audit.
+  recorded with audit, split-aware settlement (a payment can settle one share).
+- **Provider webhook** — HMAC-SHA256 over the raw body, idempotent event ingest, automatic
+  settlement of the matching payment when a provider reports `PAID`.
+- **Realtime at scale** — Socket.IO Redis adapter when `REDIS_URL` is set; the outbox dispatcher
+  already claims each event once.
+- **Observability & operations** — `/health`, `/health/ready`, Prometheus `/metrics`, JSON request
+  logs with request ids, `pnpm backup` / `pnpm restore`, and the ESC/POS print agent for 80 mm
+  kitchen tickets and receipts.
 - **Promotions** — management API and `/app/promotions` (percentage, fixed and coupon values, date
   window, minimum spend, discount cap, redemption limit, per-branch or tenant-wide), applied by the
   pricing engine and redeemable by guests from the cart.
@@ -98,15 +106,14 @@ the brass rail.
 
 ## Partially implemented
 
-| Feature           | What exists                                                                                 | What is missing                                         |
-| ----------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| Split bills       | Equal / amount / item splits stored and displayed                                           | Splits are not individually settled or auto-marked paid |
-| Realtime          | Socket.IO gateway, room authorization, outbox, resync endpoint, guest-room routing verified | Redis adapter for multiple API instances                |
-| Menu availability | Manual sold-out per branch                                                                  | Scheduled/time-window availability                      |
-| Notifications     | Table + seeded rows                                                                         | Inbox UI, delivery channels, worker                     |
-| Staff             | Membership roles, branch scopes, invitations                                                | Station-level assignment, shift scheduling API/UI       |
-| Receipts          | Snapshot with A4 check and 80 mm thermal layouts, issued once per paid bill                 | PDF delivery or e-mail receipt                          |
-| Refunds           | Recorded with audit and caps                                                                | Actual money movement / PSP call                        |
+| Feature           | What exists                                                                 | What is missing                                          |
+| ----------------- | --------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Menu availability | Manual sold-out per branch                                                  | Scheduled/time-window availability                       |
+| Notifications     | Table + seeded rows                                                         | Inbox UI, delivery channels, worker                      |
+| Staff             | Membership roles, branch scopes, invitations                                | Station-level assignment, shift scheduling API/UI        |
+| Receipts          | Snapshot with A4 check and 80 mm thermal layouts, issued once per paid bill | PDF delivery or e-mail receipt                           |
+| Refunds           | Recorded with audit and caps                                                | Actual money movement / PSP call                         |
+| Provider payments | Signed webhook settles the matching payment                                 | A provider contract, field mapping and production secret |
 
 ## Not implemented
 
@@ -123,15 +130,14 @@ the brass rail.
 
 ## Known bugs / limitations
 
-See [KNOWN_ISSUES.md](./KNOWN_ISSUES.md). The most material:
+See [KNOWN_ISSUES.md](./KNOWN_ISSUES.md). What remains material:
 
-1. Split rows remain `OPEN` after the bill is paid.
-2. ~~Payment creation is not idempotent~~ — fixed: `POST /payments` takes an idempotency key.
-3. ~~“Today” uses the API host’s midnight~~ — fixed: analytics and day close use Asia/Bangkok.
-4. The kitchen board is single-instance without the Redis adapter.
+1. Refunds and provider settlements record money but do not move it; a PSP contract is still needed.
+2. Notifications have a table but no inbox or delivery worker.
+3. Menu images are URLs; there is no upload/storage adapter.
 
 ## Exact next task
 
-Mark split allocations paid when the payment that covers them is confirmed (a `splitId` on the
-payment, updated in the confirmation transaction), then add the BullMQ worker with the Redis
-adapter so realtime and scheduled jobs survive horizontal scaling.
+Connect a payment provider contract to the existing signed webhook (map their event fields, set
+`PAYMENT_WEBHOOK_SECRET`), then add the BullMQ worker on Redis for email, receipt delivery and
+scheduled jobs.

@@ -91,6 +91,32 @@ async function main() {
   const health = await new Client().get('/api/v1/health');
   check('health endpoint', health.status === 200 && health.body.status === 'ok', health.body);
 
+  const ready = await new Client().get('/api/v1/health/ready');
+  check(
+    'readiness reports database and redis',
+    ready.status === 200 && ready.body.status === 'ready' && ready.body.database?.ok === true,
+    ready.body,
+  );
+
+  const metrics = await new Client().get('/api/v1/metrics');
+  const metricsText =
+    typeof metrics.body === 'string' ? metrics.body : (metrics.body?.raw ?? '');
+  check(
+    'metrics endpoint exposes prometheus text',
+    metrics.status === 200 && metricsText.includes('tabletap_http_requests_total'),
+    { status: metrics.status },
+  );
+
+  const badSignature = await new Client().post(
+    '/api/v1/public/payments/provider/mock/webhook',
+    { eventId: 'evt-smoke', reference: 'PAY-NOPE', status: 'PAID' },
+    { 'x-provider-signature': 'deadbeef' },
+  );
+  check('payment webhook rejects a bad signature', badSignature.status === 401, {
+    status: badSignature.status,
+    body: badSignature.body,
+  });
+
   const { client: owner, result: ownerLogin } = await login('owner@spicegarden.local');
   const me = await owner.get('/api/v1/auth/me');
   check('owner session resolves tenant + permissions', me.status === 200 && me.body.role === 'OWNER' && me.body.permissions.length > 20, me.body);

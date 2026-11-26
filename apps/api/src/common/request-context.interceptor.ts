@@ -27,7 +27,6 @@ export class RequestContextInterceptor implements NestInterceptor {
       tap({
         finalize: () => {
           const durationMs = Date.now() - startedAt;
-          // eslint-disable-next-line no-console
           console.log(
             JSON.stringify({
               level: 'info',

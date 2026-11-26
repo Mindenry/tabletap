@@ -25,12 +25,17 @@
     "db:seed": "pnpm --filter @tabletap/api db:seed",
     "db:studio": "pnpm --filter @tabletap/api db:studio",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md,prisma,yml,yaml}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,prisma,yml,yaml}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,prisma,yml,yaml}\"",
+    "print:agent": "node tools/print-agent/agent.mjs",
+    "backup": "node scripts/backup.mjs",
+    "restore": "node scripts/backup.mjs --restore"
   },
   "devDependencies": {
+    "eslint": "^9.39.5",
     "playwright": "^1.65.1",
     "prettier": "^3.6.2",
     "turbo": "^2.5.8",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.74.0"
   }
 }

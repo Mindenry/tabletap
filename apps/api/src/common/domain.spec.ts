@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { convertQuantity, isUnit } from './units';
 import {
+  addMoney,
   canTransition,
+  compareMoney,
+  formatMoney,
   ORDER_TRANSITIONS,
-  PAYMENT_TRANSITIONS,
+  parseAmountToDecimalString,
   PAYMENT_STATUS_LABELS,
+  PAYMENT_TRANSITIONS,
 } from '@tabletap/shared';
-import { addMoney, compareMoney, formatMoney, parseAmountToDecimalString } from '@tabletap/shared';
 
 describe('unit conversion', () => {
   it('converts within a family', () => {

@@ -14,6 +14,8 @@ async function bootstrap(): Promise<void> {
 
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],
+    // Payment provider webhooks are verified against the exact bytes received.
+    rawBody: true,
   });
 
   app.setGlobalPrefix('api/v1', {

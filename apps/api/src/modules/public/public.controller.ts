@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, Res, UseGuards, type RawBodyRequest } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
@@ -8,7 +8,12 @@ import { setCsrfCookie, setCustomerCookie } from '../auth/cookies';
 import { actorFrom, idempotencyKeyFrom } from '../../common/actor';
 import type { CustomerPrincipal } from '../auth/principal';
 import { PublicService } from './public.service';
-import { CustomerCancelOrderDto, CustomerRequestDto, CreateCustomerSessionDto } from './public.dto';
+import {
+  CustomerCancelOrderDto,
+  CustomerRequestDto,
+  CreateCustomerSessionDto,
+  ProviderWebhookDto,
+} from './public.dto';
 import { CreateOrderDto } from '../orders/orders.dto';
 import { randomBytes } from 'node:crypto';
 
@@ -93,5 +98,24 @@ export class PublicController {
     @Req() req: Request,
   ) {
     return this.publicService.createRequest(principal, dto, actorFrom(req));
+  }
+
+  /**
+   * Server-to-server payment webhook. Authenticated by an HMAC signature, not a
+   * cookie; the raw body is required so the signature covers the exact bytes.
+   */
+  @Post('payments/provider/:provider/webhook')
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
+  providerWebhook(
+    @Param('provider') provider: string,
+    @Body() dto: ProviderWebhookDto,
+    @Req() req: RawBodyRequest<Request>,
+  ) {
+    return this.publicService.handleProviderWebhook(
+      provider,
+      dto,
+      req.rawBody,
+      req.headers['x-provider-signature'],
+    );
   }
 }

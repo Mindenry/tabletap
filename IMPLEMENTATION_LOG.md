@@ -399,3 +399,59 @@ watched. The audit found presentation bugs rather than broken flows; the fixes b
   produced subtotal 387.00, discount 46.44, total 374.62; an unknown code returned
   `PROMOTION_INVALID`; the test order was cancelled.
 - 17 screenshots including the promotions screen; no console errors.
+
+## 2026-11-26 — Session 9 (the three remaining production gaps)
+
+### Split settlement
+
+- Migration `20261126130000_payment_split` adds `Payment.splitId` (nullable, `ON DELETE SET NULL`)
+  and the `BillSplit.payments` relation.
+- `createPayment` stores the share; `applySettlement` marks that share `PAID` inside the same
+  transaction that settles the bill; a fully refunded share reopens.
+- The POS shares list now shows each status and offers “Take payment” per open share.
+- Verified over HTTP: a 371.80 bill split in two, one share paid → bill `PARTIALLY_PAID`,
+  185.90 paid, share 1 `PAID`, share 2 `OPEN`.
+
+### Provider payment webhook
+
+- `POST /api/v1/public/payments/provider/:provider/webhook` verifies HMAC-SHA256 over the **raw**
+  body (`NestFactory.create({ rawBody: true })`), stores each event idempotently in
+  `PaymentProviderEvent`, and settles the payment through the same locked transaction as a cashier
+  confirmation (audit actor `SYSTEM`, `confirmedById` null).
+- Verified: valid signature → `status: confirmed`, bill `PAID`; replay → `duplicate: true`; bad
+  signature → `401 WEBHOOK_SIGNATURE`. The smoke suite now covers the rejection path.
+
+### Multi-instance realtime
+
+- `RealtimeGateway.afterInit` attaches `@socket.io/redis-adapter` when `REDIS_URL` is set; the
+  realtime smoke passes with the adapter active.
+
+### Observability and operations
+
+- `GET /health/ready` reports PostgreSQL latency, Redis latency and outbox backlog, and returns
+  `503` when not ready.
+- `GET /metrics` exposes Prometheus counters and database gauges; every request is counted by a
+  global interceptor.
+- `pnpm backup` / `pnpm restore <file>` wrap `pg_dump`/`pg_restore` through Compose, gzip the dump and
+  prune old archives. Docs: `docs/operations/backups.md`, `docs/operations/monitoring.md`.
+- ESLint 9 + `typescript-eslint` with a root flat config (re-exported by each package); `pnpm lint`
+  passes. Fixed two duplicate imports, removed two stale `@next/next` disable comments and one
+  stale `no-console` directive it surfaced.
+
+### ESC/POS print agent
+
+- `tools/print-agent` signs in as a staff account, polls open tickets and (optionally) paid bills,
+  renders 42-column ESC/POS with Thai TIS-620 text, and prints over TCP:9100 or writes `.bin` files.
+  It keeps a state file so a slip is printed once.
+- Verified with `--once --output`: two open tickets produced 329 and 320 byte slips; a manager run
+  with `--receipts --backfill` produced 20 receipt slips (~1 KB each). Decoding the bytes back to
+  text confirmed the Thai item names, aligned totals and the payment reference.
+
+### Verification
+
+- `pnpm lint` → 4/4 packages pass.
+- `pnpm --filter @tabletap/api test` → 30/30.
+- API smoke → all checks (including readiness, metrics, webhook signature rejection, promotions,
+  day close, paged lists).
+- Web smoke → 24/24; realtime → all checks (Redis adapter active).
+- `pnpm --filter @tabletap/web build` passes; the database was reseeded after the settlement tests.

@@ -15,6 +15,7 @@ import { CatalogModule } from './modules/catalog/catalog.module';
 import { FloorModule } from './modules/floor/floor.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { PromotionsModule } from './modules/promotions/promotions.module';
+import { MetricsModule } from './modules/metrics/metrics.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { KitchenModule } from './modules/kitchen/kitchen.module';
 import { BillingModule } from './modules/billing/billing.module';
@@ -45,6 +46,7 @@ import { RedisModule } from './modules/redis/redis.module';
     FloorModule,
     InventoryModule,
     PromotionsModule,
+    MetricsModule,
     OrdersModule,
     KitchenModule,
     BillingModule,

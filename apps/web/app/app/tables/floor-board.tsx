@@ -537,7 +537,6 @@ export function FloorBoard({
               {qr ? (
                 <div className="rounded-lg border border-line bg-surface p-4">
                   <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`/api/v1/tables/${selected.id}/qr/download?format=png`}
                       alt={`QR code for table ${selected.number}`}

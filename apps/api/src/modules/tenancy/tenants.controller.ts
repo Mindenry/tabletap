@@ -1,8 +1,7 @@
 import { Body, Controller, Get, Patch, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
-import { CurrentStaff } from '../auth/decorators';
-import { RequirePermissions } from '../auth/decorators';
+import { CurrentStaff, RequirePermissions } from '../auth/decorators';
 import type { StaffPrincipal } from '../auth/principal';
 import { actorFrom } from '../../common/actor';
 import { EntitlementsService } from './entitlements.service';

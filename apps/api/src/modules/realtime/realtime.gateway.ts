@@ -8,7 +8,9 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { JwtService } from '@nestjs/jwt';
-import type { Namespace, Socket } from 'socket.io';
+import type { Namespace, Server, Socket } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
+import Redis from 'ioredis';
 import type { FeatureKey } from '@tabletap/shared';
 import { staffRooms, customerSessionRoom, type RealtimeEnvelope } from '@tabletap/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -49,7 +51,17 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     private readonly prisma: PrismaService,
   ) {}
 
-  afterInit(): void {
+  afterInit(server: Namespace): void {
+    // With more than one API instance, events must cross processes. Redis is
+    // optional: a single-instance deployment keeps the in-memory adapter.
+    if (env.redisUrl) {
+      const pub = new Redis(env.redisUrl, { maxRetriesPerRequest: null });
+      const sub = pub.duplicate();
+      pub.on('error', (error) => this.logger.warn({ err: error.message }, 'Redis pub client error'));
+      sub.on('error', (error) => this.logger.warn({ err: error.message }, 'Redis sub client error'));
+      (server.server as Server).adapter(createAdapter(pub, sub));
+      this.logger.log('Realtime using the Redis adapter');
+    }
     this.logger.log('Realtime gateway ready on namespace /realtime');
   }
 

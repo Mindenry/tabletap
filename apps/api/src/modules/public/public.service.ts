@@ -4,11 +4,15 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CatalogService } from '../catalog/catalog.service';
 import { OrdersService } from '../orders/orders.service';
+import { PaymentsService } from '../billing/payments.service';
 import { OutboxService } from '../realtime/outbox.service';
 import { AuditService } from '../audit/audit.module';
 import { hashSecret, randomToken } from '../../common/crypto';
@@ -17,6 +21,7 @@ import { env } from '../../config/env';
 import { ActorMeta } from '../../common/actor';
 import type { CustomerPrincipal } from '../auth/principal';
 import type { CreateOrderDto } from '../orders/orders.dto';
+import type { ProviderWebhookDto } from './public.dto';
 
 interface ResolvedQr {
   tokenId: string;
@@ -38,6 +43,7 @@ export class PublicService {
     private readonly prisma: PrismaService,
     private readonly catalog: CatalogService,
     private readonly orders: OrdersService,
+    private readonly payments: PaymentsService,
     private readonly outbox: OutboxService,
     private readonly audit: AuditService,
   ) {}
@@ -467,5 +473,89 @@ export class PublicService {
   /** Metrics for platform/ops: QR scan volume is derived from sessions. */
   async sessionCount(tenantId: string): Promise<number> {
     return this.prisma.customerSession.count({ where: { tableSession: { tenantId } } });
+  }
+
+  /**
+   * Provider payment webhook. The signature is HMAC-SHA256 over the exact raw
+   * body; the event is stored before it is applied so re-delivery is a no-op.
+   */
+  async handleProviderWebhook(
+    provider: string,
+    dto: ProviderWebhookDto,
+    rawBody: Buffer | undefined,
+    signatureHeader: string | string[] | undefined,
+  ) {
+    const secret = env.paymentWebhookSecret;
+    if (!secret) {
+      throw new ServiceUnavailableException({
+        message: 'The payment webhook is not configured (PAYMENT_WEBHOOK_SECRET)',
+        code: 'PAYMENT_WEBHOOK_NOT_CONFIGURED',
+      });
+    }
+    if (!rawBody || rawBody.length === 0) {
+      throw new BadRequestException({
+        message: 'The webhook body is required for signature verification',
+        code: 'WEBHOOK_BODY_MISSING',
+      });
+    }
+
+    const provided = Array.isArray(signatureHeader) ? signatureHeader[0] : signatureHeader;
+    const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
+    const candidate = (provided ?? '').replace(/^sha256=/, '').trim();
+    const valid =
+      candidate.length === expected.length &&
+      timingSafeEqual(Buffer.from(candidate, 'utf8'), Buffer.from(expected, 'utf8'));
+    if (!valid) {
+      throw new UnauthorizedException({
+        message: 'Invalid webhook signature',
+        code: 'WEBHOOK_SIGNATURE',
+      });
+    }
+
+    const providerKey = provider.slice(0, 40).toLowerCase();
+    let eventId: string;
+    try {
+      const event = await this.prisma.paymentProviderEvent.create({
+        data: {
+          provider: providerKey,
+          eventId: dto.eventId,
+          payload: dto as unknown as Prisma.InputJsonValue,
+        },
+      });
+      eventId = event.id;
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return { received: true, duplicate: true };
+      }
+      throw error;
+    }
+
+    try {
+      if (dto.status !== 'PAID') {
+        await this.prisma.paymentProviderEvent.update({
+          where: { id: eventId },
+          data: { processedAt: new Date() },
+        });
+        return { received: true, status: dto.status };
+      }
+
+      const result = await this.payments.confirmFromProvider({
+        provider: providerKey,
+        reference: dto.reference,
+        amount: dto.amount,
+        eventId: dto.eventId,
+      });
+      await this.prisma.paymentProviderEvent.update({
+        where: { id: eventId },
+        data: { processedAt: new Date() },
+      });
+      return { received: true, ...result };
+    } catch (error) {
+      await this.prisma.paymentProviderEvent.update({
+        where: { id: eventId },
+        data: { error: error instanceof Error ? error.message.slice(0, 300) : 'unknown error' },
+      });
+      throw error;
+    }
   }
 }

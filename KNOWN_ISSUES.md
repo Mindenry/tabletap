@@ -4,11 +4,9 @@ Ordered by impact. Each entry states the behaviour, why it exists, and the inten
 
 ## 1. Split rows are not marked paid
 
-**Symptom:** after splitting a bill and settling it, `BillSplit.status` stays `OPEN`.
-**Cause:** payments settle the bill, not individual allocations; `Payment` has no split reference.
-**Impact:** the POS shows shares as informational; the bill itself is correctly `PAID`.
-**Fix:** add `Payment.splitId` (or a `BillSplitPayment` join) and update the split atomically inside
-the confirmation transaction.
+**Status: fixed 2026-11-26.** `Payment` now carries a nullable `splitId`. A payment taken against a
+share marks that `BillSplit` `PAID` inside the confirmation transaction; a full refund of that
+payment reopens it. The POS shows each share with a “Take payment” action.
 
 ## 2. Payment creation is not idempotent
 
@@ -25,11 +23,9 @@ the day boundary from `Asia/Bangkok` (UTC+7), independent of the API host's time
 
 ## 4. Single-instance realtime
 
-**Symptom:** with more than one API instance, sockets connected to instance A do not receive events
-published by instance B.
-**Cause:** the Redis Socket.IO adapter is not wired (dependency present).
-**Fix:** attach `@socket.io/redis-adapter` in `RealtimeGateway.afterInit` when `REDIS_URL` is set,
-and run the dispatcher in one designated process.
+**Status: fixed 2026-11-26.** When `REDIS_URL` is set the Socket.IO gateway attaches
+`@socket.io/redis-adapter`, so an event published by one API instance reaches sockets on all of
+them. Without Redis it falls back to the in-memory adapter (single instance).
 
 ## 5. Outbox writes serialise per tenant
 
@@ -72,15 +68,19 @@ URLs.
 
 ## 11. `pnpm lint` cannot run
 
-**Symptom:** `pnpm lint` fails with `'eslint' is not recognized`; every package declares an ESLint
-script but the dependency and a config file are absent.
-**Impact:** types are checked (`tsc --noEmit`) and builds are gated, but style/lint regressions are
-not caught in CI.
-**Fix:** add `eslint`, `typescript-eslint` and the Next.js plugin with a flat config at the root,
-then make `lint` part of the CI job.
+**Status: fixed 2026-11-26.** ESLint 9 and `typescript-eslint` are installed with a flat config at
+the repository root (re-exported by each package). `pnpm lint` passes for all four packages.
 
 ## 12. Orders and bills lists are capped at 100 rows
 
 **Status: fixed 2026-11-26.** `GET /orders` and `GET /bills` accept `offset` plus `from`/`to` date
 filters; the web lists page 50 rows at a time with newer/older links, and `GET /orders/export` /
 `GET /bills/export` stream CSV through `/app/exports/*` for reconciliation.
+
+## 13. Payment provider integration is provider-agnostic
+
+**Status: ready to connect.** `POST /api/v1/public/payments/provider/:provider/webhook` verifies an
+HMAC-SHA256 signature over the raw body, stores every event idempotently, and confirms the payment
+when the provider reports `PAID`. What remains is commercial, not technical: a contract with a
+provider, their event field names mapped to the DTO, and their secret in `PAYMENT_WEBHOOK_SECRET`.
+Receipts are not generated automatically on a provider confirmation; staff open them on first print.
