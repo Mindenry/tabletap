@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireSession, hasPermission } from '@/lib/auth';
 import { serverApi } from '@/lib/api-server';
-import { formatDateTime, formatTHB } from '@/lib/utils';
+import { formatDateTime, formatTHB, plural, cn } from '@/lib/utils';
 import type { BillRow } from '@/lib/types';
 import { NoAccess } from '@/components/no-access';
 import { PageHeader } from '@/components/ui/page-header';
@@ -50,20 +50,20 @@ export default async function BillsPage({
       <PageHeader
         eyebrow="Money"
         title="Bills & payments"
-        description={`${bills.length} bill(s) in this view · ${formatTHB(paidTotal)} settled · ${formatTHB(dueTotal)} outstanding`}
+        description={`${plural(bills.length, 'bill')} in this view · ${formatTHB(paidTotal)} settled · ${formatTHB(dueTotal)} outstanding`}
       />
       {error ? <InlineError>{error}</InlineError> : null}
 
-      <div className="flex flex-wrap gap-1">
-        {FILTERS.map((filter) => (
+      <div className="inline-flex max-w-full flex-wrap border border-line bg-surface-raised">
+        {FILTERS.map((filter, index) => (
           <Link
             key={filter}
             href={`/app/bills?branch=${branchId}${filter === 'ALL' ? '' : `&status=${filter}`}`}
-            className={
-              status === filter
-                ? 'rounded-full bg-ink px-3 py-1.5 text-[12px] font-medium text-paper'
-                : 'rounded-full bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-soft hover:bg-paper-deep'
-            }
+            className={cn(
+              'border-line px-3 py-1.5 text-[11.5px] font-medium transition-colors',
+              index < FILTERS.length - 1 && 'border-r',
+              status === filter ? 'bg-ink text-paper' : 'text-ink-soft hover:bg-paper-deep hover:text-ink',
+            )}
           >
             {filter === 'ALL' ? 'All' : filter.replace(/_/g, ' ').toLowerCase()}
           </Link>
@@ -73,45 +73,56 @@ export default async function BillsPage({
       {bills.length === 0 ? (
         <EmptyState title="No bills" description="Bills are created from a live table session in the POS." />
       ) : (
-        <TableWrap>
-          <Table>
-            <THead>
-              <TR>
-                <TH>Bill</TH>
-                <TH>Table</TH>
-                <TH>Status</TH>
-                <TH className="text-right">Total</TH>
-                <TH className="text-right">Paid</TH>
-                <TH className="text-right">Due</TH>
-                <TH className="text-right">Opened</TH>
-                <TH />
-              </TR>
-            </THead>
-            <TBody>
-              {bills.map((bill) => (
-                <TR key={bill.id}>
-                  <TD className="font-medium text-ink">{bill.number}</TD>
-                  <TD>Table {bill.table.number}</TD>
-                  <TD>
-                    <StatusBadge status={bill.status} />
-                  </TD>
-                  <TD className="text-right tabular">{formatTHB(bill.total)}</TD>
-                  <TD className="text-right tabular text-success">{formatTHB(bill.paidTotal)}</TD>
-                  <TD className="text-right tabular">{formatTHB(bill.due)}</TD>
-                  <TD className="text-right text-[12px] text-muted">{formatDateTime(bill.createdAt)}</TD>
-                  <TD className="text-right">
-                    <Link
-                      href={`/app/bills/${bill.id}?branch=${branchId}`}
-                      className="text-[12px] font-medium text-brand hover:underline"
-                    >
-                      Open
-                    </Link>
-                  </TD>
+        <div className="space-y-2">
+          <TableWrap>
+            <Table className="min-w-[820px]">
+              <THead>
+                <TR>
+                  <TH>Bill</TH>
+                  <TH>Table</TH>
+                  <TH>Status</TH>
+                  <TH className="text-right">Total</TH>
+                  <TH className="text-right">Paid</TH>
+                  <TH className="text-right">Due</TH>
+                  <TH className="text-right">Opened</TH>
+                  <TH />
                 </TR>
-              ))}
-            </TBody>
-          </Table>
-        </TableWrap>
+              </THead>
+              <TBody>
+                {bills.map((bill) => (
+                  <TR key={bill.id}>
+                    <TD className="whitespace-nowrap font-medium text-ink">{bill.number}</TD>
+                    <TD className="whitespace-nowrap">Table {bill.table.number}</TD>
+                    <TD>
+                      <StatusBadge status={bill.status} />
+                    </TD>
+                    <TD className="whitespace-nowrap text-right tabular">{formatTHB(bill.total)}</TD>
+                    <TD className="whitespace-nowrap text-right tabular text-success">
+                      {formatTHB(bill.paidTotal)}
+                    </TD>
+                    <TD className="whitespace-nowrap text-right tabular">{formatTHB(bill.due)}</TD>
+                    <TD className="whitespace-nowrap text-right text-[12px] text-muted">
+                      {formatDateTime(bill.createdAt)}
+                    </TD>
+                    <TD className="text-right">
+                      <Link
+                        href={`/app/bills/${bill.id}?branch=${branchId}`}
+                        className="whitespace-nowrap text-[12px] font-medium text-brand hover:underline"
+                      >
+                        Open
+                      </Link>
+                    </TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          </TableWrap>
+          {bills.length >= 100 ? (
+            <p className="text-[11px] text-muted">
+              Showing the most recent 100 bills. Use a status filter when reconciling a longer period.
+            </p>
+          ) : null}
+        </div>
       )}
     </div>
   );

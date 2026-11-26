@@ -285,3 +285,46 @@ screen empty.
 - `node apps/web/scripts/web-smoke.mjs` → 24/24.
 - Capture script: **13 screenshots**, no console errors, published to `docs/screenshots/`
   (including a new dish-sheet image).
+
+## 2026-11-26 — Session 5 (readiness audit)
+
+Every route was opened in a real browser at 1440×900 and 390×844 as the owner, with the console
+watched. The audit found presentation bugs rather than broken flows; the fixes below are committed.
+
+### Fixed
+
+- **Service rail named the wrong section** on `/app/orders/<id>` and `/app/bills/<id>` (it read the
+  last path segment, found no label, and fell back to “Overview”). It now uses the last segment that
+  names a section.
+- **Guest-request `OPEN` was green.** An unresolved request read as success; it is now gold, and
+  `OPEN_REQUEST` follows the same tone.
+- **Dates mixed languages.** Staff screens printed Thai month names inside English tables; staff
+  dates now use `en-GB` in Asia/Bangkok, while the guest menu keeps its own Thai formatting.
+- **Pluralisation.** `1 order(s)` is gone: a `plural()` helper is used on the dashboard, orders,
+  bills, order detail, POS and the guest menu.
+- **Mobile tables.** Orders, bills, inventory, menu, staff, audit and the floor list now set a
+  minimum table width so they scroll horizontally instead of collapsing into four-line cells.
+  Order and bill numbers no longer wrap.
+- **Floor on a phone** defaults to the list view; a 1300px canvas is not usable at 390px.
+- **Filter controls** on orders and bills are the same hairline segmented control used on the floor
+  and kitchen, and the bordered groups no longer stretch a blank cell across the row.
+- **Inventory** now uses the metric band, matching the overview and analytics.
+- **Shared tabs** (`TabsList`/`TabsTrigger`) are squared and ink-filled instead of a floating pill.
+- **Added `app/loading.tsx` and `app/error.tsx`**: navigations show a skeleton, and an API failure
+  shows a retry surface with the digest instead of Next's default error page.
+- **Long lists** state that they show the latest 100 rows, so the cap is no longer silent.
+
+### Found but not changed (documented in KNOWN_ISSUES.md)
+
+- `pnpm lint` fails: ESLint is not installed and no config exists (#11).
+- Orders and bills cap at 100 rows with no pagination (#12).
+- Split rows still stay `OPEN` after payment (#1) and payment creation is not idempotent (#2).
+- The dashboard day boundary still depends on the API host timezone (#3).
+- The kitchen board is single-instance without the Redis adapter (#4).
+
+### Verification
+
+- `tsc --noEmit` clean, `next build` pass.
+- `pnpm --filter @tabletap/api test` → 30/30.
+- `node apps/web/scripts/web-smoke.mjs` → 24/24.
+- Browser pass over 13 staff routes plus 5 phone routes: no unexpected console errors.

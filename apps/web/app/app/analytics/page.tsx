@@ -193,7 +193,7 @@ export default async function AnalyticsPage({
         </CardHeader>
         <div className="mt-3">
           <TableWrap className="rounded-none border-x-0 border-b-0">
-            <Table>
+            <Table className="min-w-[640px]">
               <THead>
                 <TR>
                   <TH>Item</TH>

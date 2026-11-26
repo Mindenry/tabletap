@@ -17,7 +17,7 @@ import {
   Users,
 } from 'lucide-react';
 import { clientApi, errorMessage } from '@/lib/api';
-import { cn, elapsedLabel, formatDateTime, formatTHB } from '@/lib/utils';
+import { cn, elapsedLabel, formatDateTime, formatTHB, plural } from '@/lib/utils';
 import type { BillDetail, BillRow, MenuItemRow, OrderRow, TableRow } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
@@ -404,7 +404,7 @@ export function PosTerminal({
                   <div className="min-w-0">
                     <p className="text-[13px] font-semibold">Table {table.number}</p>
                     <p className="truncate text-[11px] text-muted">
-                      {elapsedLabel(table.session!.openedAt)} · {table.session!.orderCount} order(s)
+                      {elapsedLabel(table.session!.openedAt)} · {plural(table.session!.orderCount, 'order')}
                       {tableBill ? ` · ${tableBill.number}` : ''}
                     </p>
                   </div>
@@ -476,8 +476,8 @@ export function PosTerminal({
               <div className="rounded-lg border border-dashed border-line-strong bg-surface/60 p-6">
                 <p className="text-[14px] font-medium">No bill yet</p>
                 <p className="mt-1 text-[12px] text-muted">
-                  {selectedTable.session!.orderCount} order(s) are unbilled. Creating a bill snapshots every
-                  item and the tax/service charge that applied at the time.
+                  {plural(selectedTable.session!.orderCount, 'order')} are unbilled. Creating a bill snapshots
+                  every item and the tax/service charge that applied at the time.
                 </p>
                 <p className="mt-3 text-[20px] font-semibold tabular">
                   {formatTHB(selectedTable.session!.outstandingTotal)}
@@ -485,11 +485,11 @@ export function PosTerminal({
                 {sessionOrders.length > 0 ? (
                   <ul className="mt-4 divide-y divide-line rounded-lg border border-line bg-surface">
                     {sessionOrders.map((order) => (
-                      <li key={order.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                      <li key={order.id} className="flex items-start justify-between gap-3 px-3 py-2">
                         <div className="min-w-0">
-                          <p className="truncate text-[12px] font-medium text-ink">{order.number}</p>
+                          <p className="money break-all text-[11.5px] font-medium text-ink">{order.number}</p>
                           <p className="text-[11px] text-muted">
-                            {order.itemCount} item(s) ·{' '}
+                            {plural(order.itemCount, 'item')} ·{' '}
                             {order.source === 'CUSTOMER_QR' ? 'Guest QR' : 'Staff POS'} ·{' '}
                             {formatDateTime(order.createdAt)}
                           </p>
@@ -512,7 +512,7 @@ export function PosTerminal({
                     <div>
                       <p className="text-[13px] font-semibold">{bill.number}</p>
                       <p className="text-[11px] text-muted">
-                        {bill.items.length} line(s) · {bill.orders?.length ?? 0} order(s)
+                        {plural(bill.items.length, 'line')} · {plural(bill.orders?.length ?? 0, 'order')}
                       </p>
                     </div>
                     <StatusBadge status={bill.status} />

@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { ArrowUpRight, CircleAlert, ClipboardList, CreditCard, Grid2x2, TrendingUp } from 'lucide-react';
 import { requireSession, hasPermission } from '@/lib/auth';
 import { serverApi } from '@/lib/api-server';
-import { elapsedLabel, formatTHB, formatTime } from '@/lib/utils';
+import { elapsedLabel, formatTHB, formatTime, plural } from '@/lib/utils';
 import type { MenuPerformanceRow, OrderRow, Overview, SalesPoint, TableRow } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, EmptyState, InlineError } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
@@ -138,7 +138,7 @@ export default async function DashboardPage({
                 <NumberTicker value={Number(monthOverview?.grossSales ?? 0)} format="currency" />
               </p>
               <p className="mt-2 text-[11px] text-muted">
-                Today {formatTHB(overview?.grossSales ?? '0.00')} · {overview?.paidBills ?? 0} bill(s)
+                Today {formatTHB(overview?.grossSales ?? '0.00')} · {plural(overview?.paidBills ?? 0, 'bill')}
               </p>
             </div>
             <div className="metric-cell px-4 sm:px-6 lg:px-8">
@@ -219,9 +219,10 @@ export default async function DashboardPage({
                       <div className="min-w-0">
                         <p className="text-[12.5px] font-medium text-ink">Table {table.number}</p>
                         <p className="text-[10.5px] text-muted">
-                          {elapsedLabel(table.session!.openedAt)} · {table.session!.orderCount} order(s)
+                          {elapsedLabel(table.session!.openedAt)} ·{' '}
+                          {plural(table.session!.orderCount, 'order')}
                           {table.session!.openRequests > 0
-                            ? ` · ${table.session!.openRequests} request(s)`
+                            ? ` · ${plural(table.session!.openRequests, 'request')}`
                             : ''}
                         </p>
                       </div>
@@ -305,7 +306,7 @@ export default async function DashboardPage({
               </div>
             ) : (
               <TableWrap className="rounded-none border-x-0 border-t-0">
-                <Table>
+                <Table className="min-w-[620px]">
                   <THead>
                     <TR>
                       <TH>Order</TH>
@@ -326,7 +327,7 @@ export default async function DashboardPage({
                             {order.number}
                           </Link>
                           <p className="text-[10.5px] text-muted">
-                            {order.itemCount} item(s) ·{' '}
+                            {plural(order.itemCount, 'item')} ·{' '}
                             {order.source === 'CUSTOMER_QR' ? 'Guest QR' : 'Staff POS'}
                           </p>
                         </TD>

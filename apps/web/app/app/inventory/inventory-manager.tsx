@@ -127,25 +127,31 @@ export function InventoryManager({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-lg border border-line bg-surface-raised p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">Stock value</p>
-          <p className="mt-1 text-[22px] font-semibold tabular">{formatTHB(totalValue)}</p>
+      <div className="metric-band -mx-4 sm:-mx-6 lg:-mx-8">
+        <div className="metric-cell px-4 sm:px-6 lg:px-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">Stock value</p>
+          <p className="money mt-2 text-[24px] leading-none text-brand sm:text-[26px]">
+            {formatTHB(totalValue)}
+          </p>
         </div>
-        <div className="rounded-lg border border-line bg-surface-raised p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">Low stock</p>
+        <div className="metric-cell px-4 sm:px-6 lg:px-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">Low stock</p>
           <p
             className={cn(
-              'mt-1 text-[22px] font-semibold tabular',
+              'money mt-2 text-[24px] leading-none sm:text-[26px]',
               low.length > 0 ? 'text-danger' : 'text-success',
             )}
           >
             {low.length}
           </p>
         </div>
-        <div className="rounded-lg border border-line bg-surface-raised p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">Recipes</p>
-          <p className="mt-1 text-[22px] font-semibold tabular">{recipes.length}</p>
+        <div className="metric-cell px-4 sm:px-6 lg:px-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">Recipes</p>
+          <p className="money mt-2 text-[24px] leading-none text-ink sm:text-[26px]">{recipes.length}</p>
+        </div>
+        <div className="metric-cell px-4 sm:px-6 lg:px-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">Ingredients</p>
+          <p className="money mt-2 text-[24px] leading-none text-gold sm:text-[26px]">{ingredients.length}</p>
         </div>
       </div>
 
@@ -199,7 +205,7 @@ export function InventoryManager({
             />
           ) : (
             <div className="overflow-hidden rounded-lg border border-line bg-surface-raised">
-              <table className="w-full text-[13px]">
+              <table className="w-full min-w-[720px] text-[13px]">
                 <thead className="border-b border-line bg-paper/60">
                   <tr>
                     <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-muted">

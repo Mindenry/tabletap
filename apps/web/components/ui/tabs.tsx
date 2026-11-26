@@ -6,10 +6,14 @@ import { cn } from '@/lib/utils';
 
 export const Tabs = TabsPrimitive.Root;
 
+/**
+ * A segmented control in the ledger language: one hairline frame, equal cells,
+ * the active cell filled with ink. No floating pills, no shadows.
+ */
 export function TabsList({ className, ...props }: React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>) {
   return (
     <TabsPrimitive.List
-      className={cn('inline-flex items-center gap-1 rounded-md bg-paper-deep p-1', className)}
+      className={cn('inline-flex flex-wrap items-center border border-line bg-surface-raised', className)}
       {...props}
     />
   );
@@ -22,9 +26,9 @@ export function TabsTrigger({
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        'rounded-[6px] px-3 py-1.5 text-[13px] font-medium text-muted transition-colors',
-        'data-[state=active]:bg-surface-raised data-[state=active]:text-ink data-[state=active]:shadow-sm',
-        'hover:text-ink',
+        'border-r border-line px-3 py-1.5 text-[11.5px] font-medium text-ink-soft transition-colors last:border-r-0',
+        'hover:bg-paper-deep hover:text-ink',
+        'data-[state=active]:bg-ink data-[state=active]:text-paper data-[state=active]:hover:bg-ink',
         className,
       )}
       {...props}

@@ -66,7 +66,7 @@ export default async function AuditPage({
       ) : (
         <>
           <TableWrap>
-            <Table>
+            <Table className="min-w-[760px]">
               <THead>
                 <TR>
                   <TH>When</TH>

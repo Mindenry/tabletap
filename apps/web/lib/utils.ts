@@ -24,7 +24,7 @@ export function formatTime(value: string | Date): string {
 }
 
 export function formatDateTime(value: string | Date): string {
-  return new Intl.DateTimeFormat('th-TH', {
+  return new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Bangkok',
     day: 'numeric',
     month: 'short',
@@ -34,12 +34,17 @@ export function formatDateTime(value: string | Date): string {
 }
 
 export function formatDate(value: string | Date): string {
-  return new Intl.DateTimeFormat('th-TH', {
+  return new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Bangkok',
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   }).format(new Date(value));
+}
+
+/** `1 order` / `2 orders` — the UI shows counts everywhere, so pluralise once. */
+export function plural(count: number, singular: string, pluralWord = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : pluralWord}`;
 }
 
 export function elapsedLabel(from: string | Date): string {

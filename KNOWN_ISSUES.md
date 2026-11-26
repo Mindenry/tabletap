@@ -70,3 +70,18 @@ URLs.
 **Symptom:** recording a refund updates records but does not transfer funds.
 **Cause:** no PSP integration.
 **Fix:** provider adapter with signed webhooks and reconciliation; the UI already states this.
+
+## 11. `pnpm lint` cannot run
+
+**Symptom:** `pnpm lint` fails with `'eslint' is not recognized`; every package declares an ESLint
+script but the dependency and a config file are absent.
+**Impact:** types are checked (`tsc --noEmit`) and builds are gated, but style/lint regressions are
+not caught in CI.
+**Fix:** add `eslint`, `typescript-eslint` and the Next.js plugin with a flat config at the root,
+then make `lint` part of the CI job.
+
+## 12. Orders and bills lists are capped at 100 rows
+
+**Symptom:** both screens request `limit=100` and have no pagination; the page now states this.
+**Impact:** older rows are only reachable through a status filter or order-number search.
+**Fix:** cursor pagination on `GET /orders` and `GET /bills`, plus “load older” in the UI.

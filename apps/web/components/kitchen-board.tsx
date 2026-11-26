@@ -207,7 +207,7 @@ export function KitchenBoard({
   return (
     <div className={cn('space-y-4', fullscreen && 'space-y-5')}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center border border-line bg-surface-raised">
+        <div className="inline-flex max-w-full flex-wrap items-center border border-line bg-surface-raised">
           <button
             type="button"
             onClick={() => setStation('ALL')}

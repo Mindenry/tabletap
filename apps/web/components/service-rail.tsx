@@ -37,8 +37,14 @@ export function ServiceRail({
     return () => clearInterval(timer);
   }, []);
 
-  const segment = pathname.split('/').filter(Boolean).pop() ?? 'dashboard';
-  const section = LABELS[segment] ?? 'Overview';
+  const segments = pathname.split('/').filter(Boolean);
+  // Nested routes end in an id (`/app/orders/<uuid>`); use the last segment that
+  // names a section rather than falling back to "Overview".
+  const section =
+    [...segments]
+      .reverse()
+      .map((segment) => LABELS[segment])
+      .find(Boolean) ?? 'Overview';
   const time = now
     ? new Intl.DateTimeFormat('th-TH', {
         timeZone: 'Asia/Bangkok',

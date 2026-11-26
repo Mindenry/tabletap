@@ -206,7 +206,7 @@ export function MenuManager({
         />
       ) : (
         <div className="overflow-hidden rounded-lg border border-line bg-surface-raised">
-          <table className="w-full text-[13px]">
+          <table className="w-full min-w-[720px] text-[13px]">
             <thead className="border-b border-line bg-paper/60">
               <tr>
                 <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-muted">

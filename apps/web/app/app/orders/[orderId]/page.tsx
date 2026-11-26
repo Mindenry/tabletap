@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { requireSession, hasPermission } from '@/lib/auth';
 import { serverApi } from '@/lib/api-server';
-import { formatDateTime, formatTHB } from '@/lib/utils';
+import { formatDateTime, formatTHB, plural } from '@/lib/utils';
 import { NoAccess } from '@/components/no-access';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle, InlineError } from '@/components/ui/card';
@@ -89,7 +89,7 @@ export default async function OrderDetailPage({
         backHref={`/app/orders?branch=${branch ?? me.branches[0]?.id}`}
         eyebrow={`Order · ${order.source === 'CUSTOMER_QR' ? 'Guest QR' : 'Staff POS'}`}
         title={order.number}
-        description={`Table ${order.table.number} · created ${formatDateTime(order.createdAt)} · ${order.items.length} line(s)`}
+        description={`Table ${order.table.number} · created ${formatDateTime(order.createdAt)} · ${plural(order.items.length, 'line')}`}
         actions={<StatusBadge status={order.status} className="text-[12px]" />}
       />
 
@@ -166,7 +166,7 @@ export default async function OrderDetailPage({
                       <div>
                         <p className="text-[12px] font-medium">{ticket.station.name}</p>
                         <p className="text-[11px] text-muted">
-                          {ticket.number} · {ticket.items.length} item(s)
+                          {ticket.number} · {plural(ticket.items.length, 'item')}
                         </p>
                         {ticket.rejectReason ? (
                           <p className="text-[11px] text-danger">{ticket.rejectReason}</p>

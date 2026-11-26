@@ -60,6 +60,14 @@ export function FloorBoard({
   const router = useRouter();
   const [zone, setZone] = React.useState<string>('ALL');
   const [view, setView] = React.useState<'plan' | 'list'>('plan');
+
+  // A 1300px floor canvas is not readable on a phone; the list is the useful view
+  // there, while the plan stays the default on tablets and desktops.
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches) {
+      setView('list');
+    }
+  }, []);
   const [selected, setSelected] = React.useState<TableRow | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [guests, setGuests] = React.useState('2');
@@ -231,7 +239,7 @@ export function FloorBoard({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center border border-line bg-surface-raised">
+        <div className="inline-flex max-w-full flex-wrap items-center border border-line bg-surface-raised">
           <button
             type="button"
             onClick={() => setZone('ALL')}
@@ -377,7 +385,7 @@ export function FloorBoard({
         </div>
       ) : (
         <TableWrap>
-          <Table>
+          <Table className="min-w-[860px]">
             <THead>
               <TR>
                 <TH>Table</TH>

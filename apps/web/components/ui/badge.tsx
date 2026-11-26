@@ -21,7 +21,7 @@ const STATUS_TONES: Record<string, string> = {
   BILL_REQUESTED: 'bg-gold-soft text-gold',
   PAYMENT_PENDING: 'bg-olive-soft text-olive',
   CLEANING: 'bg-paper-deep text-muted',
-  OPEN: 'bg-success-soft text-success',
+  OPEN: 'bg-gold-soft text-gold',
   CLOSED: 'bg-paper-deep text-muted',
   // orders / kitchen
   ACCEPTED: 'bg-olive-soft text-olive',
@@ -41,7 +41,7 @@ const STATUS_TONES: Record<string, string> = {
   ACKNOWLEDGED: 'bg-gold-soft text-gold',
   IN_PROGRESS: 'bg-gold-soft text-gold',
   RESOLVED: 'bg-success-soft text-success',
-  OPEN_REQUEST: 'bg-brand-soft text-brand-deep',
+  OPEN_REQUEST: 'bg-gold-soft text-gold',
   LOW: 'bg-danger-soft text-danger',
 };
 
@@ -58,7 +58,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.04em]',
+        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.04em]',
         tone,
         className,
       )}
